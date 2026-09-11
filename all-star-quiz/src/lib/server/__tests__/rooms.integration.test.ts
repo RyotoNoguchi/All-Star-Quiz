@@ -1,17 +1,17 @@
 // @vitest-environment node
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { db } from '../db';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { createRoom, joinRoom, leaveRoom, readRoom } from '../rooms';
 
-let directory: string;
+if (!process.env.QUIZ_TEST_SCHEMA?.startsWith('quiz_test_'))
+  throw new Error('Run npm run test:db to isolate database tests.');
 beforeEach(async () => {
-  directory = await mkdtemp(join(tmpdir(), 'quiz-rooms-'));
-  vi.stubEnv('ROOM_STORE_PATH', join(directory, 'rooms.json'));
+  await db.game.deleteMany();
+  await db.user.deleteMany();
 });
-afterEach(async () => {
-  await rm(directory, { recursive: true, force: true });
-  vi.unstubAllEnvs();
+afterAll(async () => {
+  await db.$disconnect();
 });
 
 it('shares participants, restores membership and hides session tokens', async () => {
@@ -69,8 +69,55 @@ it('expires rooms after 24 hours', async () => {
   const { room } = await createRoom('ホスト', 'host');
   const spy = vi.spyOn(Date, 'now').mockReturnValue(room.createdAt + 86400001);
   try {
-    await expect(readRoom(room.code, 'host')).rejects.toThrow('見つかりません');
+    await expect(readRoom(room.code, 'host')).rejects.toThrow('有効期限');
+    expect(
+      (await db.game.findUnique({ where: { code: room.code } }))?.finishReason
+    ).toBe('expired');
   } finally {
     spy.mockRestore();
   }
+});
+
+it('shares data across independent processes and survives client restart', async () => {
+  const created = await createRoom('ホスト', 'host');
+  const run = promisify(execFile);
+  const join = (token: string) =>
+    run(process.execPath, [
+      '--import',
+      'tsx',
+      'scripts/room-worker.ts',
+      'join',
+      created.room.code,
+      token,
+    ]);
+  await Promise.all([join('worker-a'), join('worker-b')]);
+  expect((await readRoom(created.room.code, 'host')).room.players).toHaveLength(
+    20
+  );
+  await db.$disconnect();
+  const restarted = await run(process.execPath, [
+    '--import',
+    'tsx',
+    'scripts/room-worker.ts',
+    'read',
+    created.room.code,
+    'host',
+  ]);
+  expect(JSON.parse(restarted.stdout).playerId).toBe(created.playerId);
+  expect(JSON.parse(restarted.stdout).room.players).toHaveLength(20);
+});
+it('serializes duplicate names and identities', async () => {
+  const { room } = await createRoom('ホスト', 'host');
+  const duplicate = await Promise.allSettled([
+    joinRoom(room.code, '同名', 'a'),
+    joinRoom(room.code, '同名', 'b'),
+  ]);
+  expect(
+    duplicate.filter((result) => result.status === 'fulfilled')
+  ).toHaveLength(1);
+  await Promise.all([
+    joinRoom(room.code, '同じ人', 'same'),
+    joinRoom(room.code, '同じ人', 'same'),
+  ]);
+  expect((await readRoom(room.code, 'host')).room.players).toHaveLength(3);
 });

@@ -44,16 +44,14 @@ becomes host. Rooms allow 20 participants and expire 24 hours after creation.
 The existing single-question demo is available at `/demo`.
 Quiz progression and multiplayer answer/elimination processing are not implemented yet.
 
-Use Node.js 22.22.0 (`.node-version`), then run `npm ci` and `npm run dev`.
+Use Node.js 22.22.0 (`.node-version`) and follow [the database setup guide](docs/DATABASE.md), then run `npm run dev`.
 For phones on the same network, open the server's Network URL shown at startup;
 share that URL rather than localhost. A browser cookie identifies each participant,
 so use different browsers/devices for different players.
 
-Room data is saved in `.data/rooms.json` (ignored by Git), so it survives restarts.
-`ROOM_STORE_PATH` can override that path. This initial storage supports **one Node.js
-server process with a writable persistent filesystem**. Before deploying to Vercel,
-multiple processes or multiple servers, replace it with the planned shared database
-and transactional storage. Polling currently synchronizes only waiting-room membership.
+Room data is now stored in PostgreSQL with transactions shared across server processes.
+See [the database setup guide](docs/DATABASE.md) for Docker startup, migrations, seeds,
+isolated database tests and the transition from the previous local file storage.
 
 Validation: `npm run test:run`, `npm run type-check`, `npm run build`.
 
