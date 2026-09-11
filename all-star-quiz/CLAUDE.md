@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is an All Star Quiz application - a survival quiz game inspired by Japanese variety shows like "All Star Thanksgiving Festival." The app supports real-time multiplayer quiz gameplay where participants compete in elimination-style questions until only one winner remains.
 
 ### Key Game Mechanics
+
 - 10-second time limit per question
 - Multiple choice questions (A, B, C, D)
 - Players eliminated for wrong answers or timeout
@@ -15,6 +16,7 @@ This is an All Star Quiz application - a survival quiz game inspired by Japanese
 - Final question indicated by bell sound
 
 ### System Architecture
+
 - **Frontend**: Next.js 15 (App Router) + React 19 + TypeScript
 - **UI**: Tailwind CSS v4 + shadcn/ui components
 - **Future Backend**: Next.js API Routes + Socket.io + Prisma + PostgreSQL
@@ -45,30 +47,36 @@ npm run test:coverage   # Run tests with coverage report
 ## Component Architecture
 
 ### Layout System
+
 - `MainLayout`: Basic page wrapper with gradient background
 - `GameLayout`: Quiz-specific layout with game styling and optional header
 
 ### Game Components
+
 - `QuizButton`: Multi-choice button (A/B/C/D) with selection states and result feedback
 - `CountdownTimer`: 10-second countdown with progress bar and urgent state styling
 
 ### UI Components
+
 Located in `src/components/ui/` - shadcn/ui components with customized styling for the quiz theme.
 
 ## Key Technical Details
 
 ### TypeScript Configuration
+
 - Strict mode enabled with additional safety checks
 - Path alias `@/*` maps to `src/*`
 - Enhanced type checking with `noUnusedLocals`, `exactOptionalPropertyTypes`, etc.
 
 ### Styling System
+
 - Tailwind CSS v4 with custom CSS variables
 - Custom animations: `quiz-pulse`, `quiz-shake`, `quiz-bounce`
 - Gradient text utility for All Star Quiz branding
 - Game-specific color scheme with transparency effects
 
 ### Testing Setup
+
 - Vitest configured with jsdom environment
 - Testing Library for React component testing
 - Global test utilities and jest-dom matchers
@@ -88,6 +96,7 @@ Based on `.kiro/specs/` documentation:
 ## Coding Standards
 
 ### React Component Rules
+
 - **Arrow Functions**: ALL React components must be implemented as arrow functions (not function declarations)
   - This applies to: `src/components/`, `src/components/ui/`, `src/components/layout/`, `src/components/game/`, `src/app/` and all subdirectories
   - No exceptions: Every React component must use arrow function syntax
@@ -105,11 +114,12 @@ Based on `.kiro/specs/` documentation:
   - ❌ Bad: `const Component = () => {...}; export { Component };`
   - ❌ Bad: `const helperFunction = cva(...); export { helperFunction };`
   - **Rule**: ALL exports (components, helpers, utilities) must use `export const` directly
-- **Component Structure**: 
+- **Component Structure**:
   - For page components: `const ComponentName: FC<Props> = (props) => { ... }; export default ComponentName;`
   - For regular components: `export const ComponentName: FC<Props> = (props) => { ... };`
 
 ### TypeScript Rules
+
 - **Type Definitions**: Always use `type` instead of `interface` for type definitions
 - **Variable Declarations**: Use `const` whenever possible, avoid `let`
 - **Props Type Name**: Always name component props type as `Props`
@@ -118,51 +128,55 @@ Based on `.kiro/specs/` documentation:
 
 ```tsx
 // Component example (for src/components/)
-import { useState, type ReactNode, type FC } from 'react'
+import { useState, type ReactNode, type FC } from 'react';
 
 type Props = {
-    name: string
-    age: number
-    children: ReactNode
-}
+  name: string;
+  age: number;
+  children: ReactNode;
+};
 
 export const Component: FC<Props> = (props) => {
-    const [count, setCount] = useState(0)
+  const [count, setCount] = useState(0);
 
-    return (
-        <div>
-            <p>{props.name}</p>
-            <p>{props.age}</p>
-            {props.children}
-        </div>
-    )
-}
+  return (
+    <div>
+      <p>{props.name}</p>
+      <p>{props.age}</p>
+      {props.children}
+    </div>
+  );
+};
 
 // Page component example (for src/app/)
 const HomePage: FC = () => {
-    const [count, setCount] = useState(0)
-    
-    return <div>Home Page</div>
-}
+  const [count, setCount] = useState(0);
 
-export default HomePage
+  return <div>Home Page</div>;
+};
+
+export default HomePage;
 ```
 
 ## Development Notes
 
 ### Component Testing
+
 Test files are located in `src/components/__tests__/`. Focus on:
+
 - User interactions (button clicks, timer events)
 - Visual state changes (selection, results, disabled states)
 - Props validation and edge cases
 
 ### File Organization
+
 - `src/components/layout/` - Layout components
 - `src/components/game/` - Quiz-specific components
 - `src/components/admin/` - Admin interface components (future)
 - `src/components/ui/` - shadcn/ui base components
 
 ### Environment Variables
+
 See `.env.example` for required environment variables when implementing backend features (database, auth, Redis, etc.).
 
 ## Gemini CLI 連携ガイド
@@ -183,13 +197,13 @@ Claude は **Gemini CLI** を随時呼び出しながら、複数ターンにわ
 
 ### 協業ワークフロー (ループ可)
 
-| #   | 処理                | 詳細                                                                                                   |
-| --- | ------------------- | ------------------------------------------------------------------------------------------------------ |
-| 1   | **PROMPT 準備**     | 最新のユーザー要件 + これまでの議論要約を `$PROMPT` に格納                                             |
-| 2   | **Gemini 呼び出し** | `bash`<br>`gemini <<EOF`<br>`$PROMPT`<br>`EOF`<br>必要に応じ `--max_output_tokens` 等を追加 |
-| 3   | **出力貼り付け**    | `Gemini ➜` セクションに全文、長い場合は要約＋原文リンク                                                |
-| 4   | **Claude コメント** | `Claude ➜` セクションで Gemini の提案を分析・統合し、次アクションを提示                                |
-| 5   | **継続判定** | ユーザー入力 or プラン継続で 1〜4 を繰り返す。<br>「Geminiコラボ終了」「協業終了」「ここまででOK」等の指示で通常モード復帰 |
+| #   | 処理                | 詳細                                                                                                                       |
+| --- | ------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **PROMPT 準備**     | 最新のユーザー要件 + これまでの議論要約を `$PROMPT` に格納                                                                 |
+| 2   | **Gemini 呼び出し** | `bash`<br>`gemini <<EOF`<br>`$PROMPT`<br>`EOF`<br>必要に応じ `--max_output_tokens` 等を追加                                |
+| 3   | **出力貼り付け**    | `Gemini ➜` セクションに全文、長い場合は要約＋原文リンク                                                                    |
+| 4   | **Claude コメント** | `Claude ➜` セクションで Gemini の提案を分析・統合し、次アクションを提示                                                    |
+| 5   | **継続判定**        | ユーザー入力 or プラン継続で 1〜4 を繰り返す。<br>「Geminiコラボ終了」「協業終了」「ここまででOK」等の指示で通常モード復帰 |
 
 ---
 

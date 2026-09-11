@@ -5,7 +5,7 @@ type Props = {
   children: ReactNode;
   title?: string;
   showHeader?: boolean;
-}
+};
 
 export const GameLayout: FC<Props> = (props) => {
   return (
@@ -19,14 +19,12 @@ export const GameLayout: FC<Props> = (props) => {
           </div>
         </header>
       )}
-      
+
       <main className="container mx-auto px-4 py-8">
         <Card className="bg-white/10 backdrop-blur-md border-white/20 shadow-2xl text-white">
-          <div className="p-6">
-            {props.children}
-          </div>
+          <div className="p-6">{props.children}</div>
         </Card>
       </main>
     </div>
   );
-}
+};

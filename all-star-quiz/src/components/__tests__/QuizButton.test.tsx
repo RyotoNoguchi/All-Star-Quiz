@@ -55,11 +55,11 @@ describe('QuizButton', () => {
 
   it('shows correct result state when showResult is true', () => {
     render(
-      <QuizButton 
-        choice="A" 
-        onClick={mockOnClick} 
-        isSelected 
-        isCorrect 
+      <QuizButton
+        choice="A"
+        onClick={mockOnClick}
+        isSelected
+        isCorrect
         showResult
       >
         Correct Answer
@@ -72,11 +72,11 @@ describe('QuizButton', () => {
 
   it('shows incorrect result state when showResult is true', () => {
     render(
-      <QuizButton 
-        choice="B" 
-        onClick={mockOnClick} 
-        isSelected 
-        isCorrect={false} 
+      <QuizButton
+        choice="B"
+        onClick={mockOnClick}
+        isSelected
+        isCorrect={false}
         showResult
       >
         Wrong Answer

@@ -68,3 +68,9 @@ See [the GitHub implementation roadmap](https://github.com/RyotoNoguchi/All-Star
 ## Hosting architecture
 
 [配備構成 ADR-002](docs/HOSTING.md) defines Vercel, the separate persistent realtime server, shared stores, environment variables and deployment prerequisites. Run `npm run test:transport` for the local transport feasibility check.
+
+## Quality checks
+
+Run `npm ci` with the Node version in `.node-version`, then `npm run check` before opening a PR. This runs ESLint, Prettier, unit tests, the Socket.IO transport probe, TypeScript, and the production build. GitHub Actions runs the same sequence on pull requests and main.
+
+`npm run format` formats the project source, configuration and documentation. Generated build files, dependencies, local data, environment files and the lockfile are excluded. The initial formatting baseline is included with the CI setup.
