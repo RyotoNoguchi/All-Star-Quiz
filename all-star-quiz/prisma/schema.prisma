@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum GamePhase {
+  waiting
+  playing
+  closing
+  results
+  finished
+}
+
+enum QuestionType {
+  normal
+  final
+}
+
+enum Choice {
+  A
+  B
+  C
+  D
+}
+
+model User {
+  id           String        @id @default(uuid())
+  tokenHash    String        @unique
+  createdAt    DateTime      @default(now())
+  participants Participant[]
+}
+
+model Game {
+  id                   String         @id @default(uuid())
+  code                 String         @unique
+  phase                GamePhase      @default(waiting)
+  version              Int            @default(0)
+  createdAt            DateTime       @default(now())
+  expiresAt            DateTime
+  finishReason         String?
+  currentQuestionIndex Int            @default(-1)
+  startedAt            DateTime?
+  deadlineAt           DateTime?
+  participants         Participant[]
+  questions            GameQuestion[]
+  answers              Answer[]
+  result               GameResult?
+}
+
+model Participant {
+  id                String    @id @default(uuid())
+  gameId            String
+  userId            String
+  name              String
+  isHost            Boolean   @default(false)
+  isEliminated      Boolean   @default(false)
+  eliminationReason String?
+  leftAt            DateTime?
+  joinedOrder       Int       @default(autoincrement())
+  game              Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user              User      @relation(fields: [userId], references: [id])
+  answers           Answer[]
+
+  @@unique([gameId, userId])
+  @@unique([gameId, name])
+  @@index([gameId, joinedOrder])
+}
+
+model Question {
+  id          String         @id @default(uuid())
+  question    String
+  choices     Json
+  answer      Choice
+  type        QuestionType   @default(normal)
+  timeLimit   Int            @default(10)
+  category    String?
+  explanation String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  games       GameQuestion[]
+}
+
+model GameQuestion {
+  id         String   @id @default(uuid())
+  gameId     String
+  questionId String
+  position   Int
+  snapshot   Json
+  game       Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  question   Question @relation(fields: [questionId], references: [id])
+  answers    Answer[]
+
+  @@unique([gameId, position])
+  @@unique([gameId, questionId])
+}
+
+model Answer {
+  id                 String       @id @default(uuid())
+  gameId             String
+  gameQuestionId     String
+  participantId      String
+  requestId          String
+  choice             Choice
+  receivedAt         DateTime
+  responseTime       Int
+  acceptanceSequence Int
+  isCorrect          Boolean
+  game               Game         @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  gameQuestion       GameQuestion @relation(fields: [gameQuestionId], references: [id], onDelete: Cascade)
+  participant        Participant  @relation(fields: [participantId], references: [id])
+
+  @@unique([gameQuestionId, participantId])
+  @@unique([gameQuestionId, participantId, requestId])
+  @@unique([gameId, acceptanceSequence])
+}
+
+model GameResult {
+  id          String   @id @default(uuid())
+  gameId      String   @unique
+  reason      String
+  winnerId    String?
+  ranking     Json
+  statistics  Json
+  completedAt DateTime @default(now())
+  game        Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+}

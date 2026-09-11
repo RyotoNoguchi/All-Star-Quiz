@@ -15,9 +15,15 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:transport": "node scripts/check-realtime.mjs",
-    "check": "npm run lint && npm run format:check && npm run test:run && npm run test:transport && npm run type-check && npm run build"
+    "check": "npm run lint && npm run format:check && npm run test:run && npm run test:db && npm run test:transport && npm run type-check && npm run build",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed.ts",
+    "test:db": "node scripts/test-db.mjs",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.2",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-progress": "^1.1.7",
@@ -43,13 +49,16 @@
     "@typescript-eslint/eslint-plugin": "^8.37.0",
     "@typescript-eslint/parser": "^8.37.0",
     "@vitejs/plugin-react": "^4.7.0",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "15.4.1",
     "eslint-config-prettier": "^10.1.5",
     "jsdom": "^26.1.0",
     "prettier": "^3.6.2",
+    "prisma": "^6.19.2",
     "socket.io-client": "^4.8.3",
     "tailwindcss": "^4",
+    "tsx": "^4.23.13",
     "tw-animate-css": "^1.3.5",
     "typescript": "^5",
     "vitest": "^3.2.4"
