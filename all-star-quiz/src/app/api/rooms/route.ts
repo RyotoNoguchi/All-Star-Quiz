@@ -1,78 +1,59 @@
-import {
-  createGuestSession,
-  requestIdentity,
-  requireIdentity,
-  SessionError,
-  setSessionCookie,
-} from '@/lib/server/session';
-import { type NextRequest, NextResponse } from 'next/server';
-import {
-  createRoom,
-  joinRoom,
-  leaveRoom,
-  readRoom,
-  RoomError,
-} from '@/lib/server/rooms';
-
+import { NextResponse, type NextRequest } from 'next/server';
+import { getHTTPStatusCodeFromError } from '@trpc/server/http';
+import { TRPCError } from '@trpc/server';
+import { createContext } from '@/lib/server/api/context';
+import { appRouter } from '@/lib/server/api/router';
+import { apiError } from '@/lib/server/api/trpc';
 export const runtime = 'nodejs';
-const failure = (error: unknown) => {
-  if (error instanceof SessionError)
-    return NextResponse.json({ error: error.message }, { status: 401 });
-  if (error instanceof RoomError)
-    return NextResponse.json(
-      { error: error.message },
-      { status: error.status }
-    );
-  console.error('Room request failed', error);
-  return NextResponse.json(
-    { error: 'ルームに接続できません。もう一度お試しください。' },
-    { status: 500 }
-  );
-};
-export const GET = async (request: NextRequest) => {
+// Compatibility endpoint: route all operations through the same validation and authorization.
+const handle = async (request: NextRequest, mutation: boolean) => {
+  const headers = new Headers({ 'Cache-Control': 'no-store' });
   try {
-    const identity = await requireIdentity(request);
-    const result = await readRoom(
-      request.nextUrl.searchParams.get('code') || '',
-      identity.userId
+    const caller = appRouter.createCaller(
+      await createContext(request, headers)
     );
-    return NextResponse.json(result, {
-      headers: { 'Cache-Control': 'no-store' },
-    });
-  } catch (error) {
-    return failure(error);
-  }
-};
-export const POST = async (request: NextRequest) => {
-  try {
-    if (request.headers.get('origin') !== request.nextUrl.origin)
-      throw new RoomError('ページを再読み込みしてください。', 403);
+    if (!mutation)
+      return NextResponse.json(
+        await caller.rooms.get({
+          code: request.nextUrl.searchParams.get('code') || '',
+        }),
+        { headers }
+      );
     const body = await request.json().catch(() => {
-      throw new RoomError('リクエストの形式が不正です。');
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'リクエストの形式が不正です。',
+      });
     });
     if (!body || typeof body !== 'object')
-      throw new RoomError('リクエストの形式が不正です。');
-    if (!['create', 'join', 'leave'].includes(body.action))
-      throw new RoomError('操作が不正です。');
-    const identity =
-      body.action === 'leave'
-        ? await requireIdentity(request)
-        : (await requestIdentity(request)) || (await createGuestSession());
-    const code =
-      typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'リクエストの形式が不正です。',
+      });
     const result =
       body.action === 'create'
-        ? await createRoom(body.name, identity.userId)
+        ? await caller.rooms.create({ name: body.name })
         : body.action === 'join'
-          ? await joinRoom(code, body.name, identity.userId)
+          ? await caller.rooms.join({ name: body.name, code: body.code })
           : body.action === 'leave'
-            ? await leaveRoom(code, identity.userId)
+            ? await caller.rooms.leave({ code: body.code })
             : null;
-    if (!result) throw new RoomError('操作が不正です。');
-    const response = NextResponse.json(result);
-    setSessionCookie(response, identity, request.nextUrl.protocol === 'https:');
-    return response;
-  } catch (error) {
-    return failure(error);
+    if (!result)
+      throw new TRPCError({ code: 'BAD_REQUEST', message: '操作が不正です。' });
+    return NextResponse.json(result, { headers });
+  } catch (cause) {
+    const error = apiError(cause);
+    const message =
+      error.code === 'INTERNAL_SERVER_ERROR'
+        ? '接続できません。しばらく待ってからもう一度お試しください。'
+        : error.code === 'BAD_REQUEST'
+          ? '入力内容を確認してください。'
+          : error.message;
+    return NextResponse.json(
+      { error: message },
+      { status: getHTTPStatusCodeFromError(error), headers }
+    );
   }
 };
+export const GET = (request: NextRequest) => handle(request, false);
+export const POST = (request: NextRequest) => handle(request, true);
