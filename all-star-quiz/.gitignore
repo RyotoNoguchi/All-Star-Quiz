@@ -45,3 +45,6 @@ AI_INSTRUCTIONSmd
 
 # kiro
 ./kiro/*
+
+# Local room storage
+/.data/

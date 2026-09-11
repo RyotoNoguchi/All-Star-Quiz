@@ -19,11 +19,7 @@ describe('CountdownTimer', () => {
 
   it('renders correctly with initial duration', () => {
     render(
-      <CountdownTimer
-        duration={10}
-        onTimeUp={mockOnTimeUp}
-        isActive={false}
-      />
+      <CountdownTimer duration={10} onTimeUp={mockOnTimeUp} isActive={false} />
     );
 
     expect(screen.getByText('10')).toBeInTheDocument();
@@ -54,11 +50,7 @@ describe('CountdownTimer', () => {
 
   it('calls onTimeUp when timer reaches zero', () => {
     render(
-      <CountdownTimer
-        duration={1}
-        onTimeUp={mockOnTimeUp}
-        isActive={true}
-      />
+      <CountdownTimer duration={1} onTimeUp={mockOnTimeUp} isActive={true} />
     );
 
     // Advance timer to completion
@@ -72,11 +64,7 @@ describe('CountdownTimer', () => {
 
   it('shows urgent state when time is low', () => {
     render(
-      <CountdownTimer
-        duration={2}
-        onTimeUp={mockOnTimeUp}
-        isActive={true}
-      />
+      <CountdownTimer duration={2} onTimeUp={mockOnTimeUp} isActive={true} />
     );
 
     expect(screen.getByText('2')).toHaveClass('text-red-400', 'animate-pulse');
@@ -84,11 +72,7 @@ describe('CountdownTimer', () => {
 
   it('does not count down when inactive', () => {
     render(
-      <CountdownTimer
-        duration={5}
-        onTimeUp={mockOnTimeUp}
-        isActive={false}
-      />
+      <CountdownTimer duration={5} onTimeUp={mockOnTimeUp} isActive={false} />
     );
 
     act(() => {
@@ -98,4 +82,38 @@ describe('CountdownTimer', () => {
     expect(screen.getByText('5')).toBeInTheDocument();
     expect(mockOnTimeUp).not.toHaveBeenCalled();
   });
+});
+
+it('finishes only once even when the parent keeps the timer active', () => {
+  const onTimeUp = vi.fn();
+  const { unmount } = render(
+    <CountdownTimer duration={1} isActive onTimeUp={onTimeUp} />
+  );
+  act(() => {
+    vi.advanceTimersByTime(5000);
+  });
+  expect(onTimeUp).toHaveBeenCalledTimes(1);
+  expect(screen.getByText('0')).toBeInTheDocument();
+  unmount();
+});
+
+it('starts a new full countdown after reactivation', () => {
+  const onTimeUp = vi.fn();
+  const { rerender, unmount } = render(
+    <CountdownTimer duration={2} isActive onTimeUp={onTimeUp} />
+  );
+  act(() => {
+    vi.advanceTimersByTime(2000);
+  });
+  rerender(
+    <CountdownTimer duration={2} isActive={false} onTimeUp={onTimeUp} />
+  );
+  expect(screen.getByText('0')).toBeInTheDocument();
+  rerender(<CountdownTimer duration={2} isActive onTimeUp={onTimeUp} />);
+  expect(screen.getByText('2')).toBeInTheDocument();
+  act(() => {
+    vi.advanceTimersByTime(2000);
+  });
+  expect(onTimeUp).toHaveBeenCalledTimes(2);
+  unmount();
 });
