@@ -64,3 +64,7 @@ See [the GitHub implementation roadmap](https://github.com/RyotoNoguchi/All-Star
 ## Game contract
 
 [サバイバルクイズ仕様 v1](docs/GAME_CONTRACT.md) defines the game rules, state transitions, server timing, retry behavior and public/private message contracts for Issue #1. Multiplayer gameplay will be implemented in the dependent issues.
+
+## Hosting architecture
+
+[配備構成 ADR-002](docs/HOSTING.md) defines Vercel, the separate persistent realtime server, shared stores, environment variables and deployment prerequisites. Run `npm run test:transport` for the local transport feasibility check.
