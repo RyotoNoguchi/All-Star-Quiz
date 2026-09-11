@@ -60,3 +60,7 @@ Validation: `npm run test:run`, `npm run type-check`, `npm run build`.
 ## Development backlog
 
 See [the GitHub implementation roadmap](https://github.com/RyotoNoguchi/All-Star-Quiz/issues/28) for all 27 remaining tasks, acceptance criteria, and dependencies. A local copy is in [docs/GITHUB_BACKLOG.md](docs/GITHUB_BACKLOG.md).
+
+## Game contract
+
+[サバイバルクイズ仕様 v1](docs/GAME_CONTRACT.md) defines the game rules, state transitions, server timing, retry behavior and public/private message contracts for Issue #1. Multiplayer gameplay will be implemented in the dependent issues.
