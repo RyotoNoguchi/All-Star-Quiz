@@ -141,3 +141,24 @@ model GuestSession {
 
   @@index([expiresAt])
 }
+
+model Admin {
+  id             String         @id @default(uuid())
+  email          String         @unique
+  passwordHash   String
+  enabled        Boolean        @default(true)
+  failedAttempts Int            @default(0)
+  lockedUntil    DateTime?
+  createdAt      DateTime       @default(now())
+  sessions       AdminSession[]
+}
+
+model AdminSession {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  adminId   String
+  expiresAt DateTime
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}

@@ -20,7 +20,8 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "test:db": "node scripts/test-db.mjs",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "admin:create": "tsx scripts/create-admin.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.2",
