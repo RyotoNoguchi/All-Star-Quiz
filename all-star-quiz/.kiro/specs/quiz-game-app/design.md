@@ -6,7 +6,7 @@
 
 ## アーキテクチャ
 
-### 全体構成（2025年最新技術スタック）
+### 計画中の構成（配置の実現性はIssue #2で検証）
 
 アプリケーションは以下の主要コンポーネントで構成されます：
 
@@ -163,85 +163,15 @@ sequenceDiagram
 - **参加者状態**：生存/脱落状態のキャッシュ
 - **回答状況**：問題ごとの回答状況
 
-## データモデル
+## データモデル・状態遷移・通信契約（Issue #1で確定）
 
-### ユーザーモデル
+正本は [GAME_CONTRACT.md](../../../docs/GAME_CONTRACT.md)、型は `src/types/game.ts`。
+内部GameStateと公開GameSnapshotを分離する。Questionは正解とtypeを含む内部データ、PublicQuestionはそれらを含まない公開データ。SubmitAnswerRequestにはplayerIdや自己申告時刻を含めず、本人はセッションから解決する。
 
-```typescript
-type User = {
-  uid: string; // NextAuth.js UID
-  displayName: string; // 表示名
-  disabled: boolean; // 脱落状態（true: 脱落, false: 生存）
-  lastGameId: string; // 最後に参加したゲームID
-};
-```
+状態は waiting → playing → closing → results → playing / finished。許可操作・例外・中止は正本の遷移表に従う。
+10秒のサーバー締切は排他的。同着はサーバー受付連番で判定し、通常問題で正解者1人なら次問へ進む。最終問題の鐘は結果発表時のみ。
 
-### 問題モデル
-
-```typescript
-type Question = {
-  id: string; // 問題ID
-  question: string; // 問題文
-  choices: {
-    // 選択肢
-    A: string;
-    B: string;
-    C: string;
-    D: string;
-  };
-  answer: 'A' | 'B' | 'C' | 'D'; // 正解
-  category?: string; // カテゴリ（オプション）
-  isFinal?: boolean; // 最終問題フラグ
-};
-```
-
-### 回答モデル
-
-```typescript
-type Answer = {
-  uid: string; // ユーザーID
-  user: string; // ユーザー名
-  answer: 'A' | 'B' | 'C' | 'D'; // 選択した回答
-  time: number; // 回答時間（ミリ秒）
-  questionId: string; // 問題ID
-};
-```
-
-### ゲームセッションモデル
-
-```typescript
-type GameSession = {
-  id: string; // ゲームセッションID
-  status: 'waiting' | 'playing' | 'finished'; // ゲーム状態
-  currentQuestionId: string; // 現在の問題ID
-  participants: string[]; // 参加者UID一覧
-  survivors: string[]; // 生存者UID一覧
-  eliminatedUsers: {
-    // 脱落者情報
-    uid: string; // ユーザーID
-    reason: 'wrong_answer' | 'timeout' | 'slowest_correct' | 'other'; // 脱落理由
-    questionId: string; // 脱落した問題ID
-  }[];
-  winner?: string; // 優勝者UID
-  createdAt: Date; // 作成日時
-  updatedAt: Date; // 更新日時
-};
-```
-
-## 画面遷移図
-
-```mermaid
-stateDiagram-v2
-    [*] --> Login: アクセス
-    Login --> Waiting: ログイン成功
-    Waiting --> Answer: ゲーム開始
-    Answer --> Result: 回答または時間切れ
-    Result --> Answer: 生存
-    Result --> GameOver: 脱落
-    Result --> Winner: 優勝
-    GameOver --> [*]
-    Winner --> [*]
-```
+イベントのversionとsnapshotで再接続時の欠落・逆転を解消する。本人限定の回答確認応答と、部屋全体に送る回答数通知は分離する。結果発表前の正解・解説・最終フラグを送らない。
 
 ## エラーハンドリング
 

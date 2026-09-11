@@ -219,3 +219,8 @@
 ## GitHub Issue管理（2026-09-11）
 
 残タスク27件と実装順を https://github.com/RyotoNoguchi/All-Star-Quiz/issues/28 に集約。各タスクの完了条件・依存関係はGitHub Issueを参照。対応表は `docs/GITHUB_BACKLOG.md` に記載。1.3は品質スクリプトとCIの残作業を含むため未完了のままとする。
+
+
+## Issue #1の引き継ぎ
+
+`docs/GAME_CONTRACT.md` をゲームルール・状態遷移・通信契約の正本とする。後続Issue #11〜#16・#26は同文書の判定例を受け入れテストに利用する。対戦API・判定エンジンの実装は後続タスクで行う。
