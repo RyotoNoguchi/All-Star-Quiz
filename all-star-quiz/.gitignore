@@ -48,3 +48,5 @@ AI_INSTRUCTIONSmd
 
 # Local room storage
 /.data/
+
+!.env.example
