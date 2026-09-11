@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FC, type FormEvent } from 'react';
 import Link from 'next/link';
+import { api, apiErrorStatus } from '@/lib/api-client';
 import { GameLayout } from '@/components/layout/GameLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,36 +31,28 @@ const Home: FC = () => {
     let timer: ReturnType<typeof setTimeout>;
     const refresh = async () => {
       try {
-        const response = await fetch(
-          `/api/rooms?code=${encodeURIComponent(activeCode)}`,
-          { cache: 'no-store', signal: controller.signal }
+        const data = await api.rooms.get.query(
+          { code: activeCode },
+          { signal: controller.signal }
         );
-        const data = await response.json().catch(() => {
-          throw new Error(
-            '接続できません。しばらく待ってからもう一度お試しください。'
-          );
-        });
         if (controller.signal.aborted) return;
-        if (!response.ok) {
-          if (
-            response.status === 401 ||
-            response.status === 403 ||
-            response.status === 404
-          ) {
-            setView(null);
-            setActiveCode('');
-            if (response.status !== 403) setError(data.error);
-            return;
-          }
-          throw new Error(data.error);
-        }
         setView(data);
         setError('');
       } catch (cause) {
-        if (!controller.signal.aborted)
-          setError(
-            cause instanceof Error ? cause.message : '接続を再試行しています。'
-          );
+        if (controller.signal.aborted) return;
+        const status = apiErrorStatus(cause);
+        if (status === 401 || status === 403 || status === 404) {
+          setView(null);
+          setActiveCode('');
+          if (status !== 403)
+            setError(
+              cause instanceof Error ? cause.message : '参加し直してください。'
+            );
+          return;
+        }
+        setError(
+          cause instanceof Error ? cause.message : '接続を再試行しています。'
+        );
       }
       if (!controller.signal.aborted)
         timer = setTimeout(() => void refresh(), 2000);
@@ -76,22 +69,18 @@ const Home: FC = () => {
     setError('');
     setNotice('');
     try {
-      const response = await fetch('/api/rooms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, name, code: view?.room.code || code }),
-      });
-      const data = await response.json().catch(() => {
-        throw new Error(
-          '接続できません。しばらく待ってからもう一度お試しください。'
-        );
-      });
-      if (!response.ok) throw new Error(data.error);
+      const roomCode = view?.room.code || code;
+      const data =
+        action === 'create'
+          ? await api.rooms.create.mutate({ name })
+          : action === 'join'
+            ? await api.rooms.join.mutate({ name, code: roomCode })
+            : await api.rooms.leave.mutate({ code: roomCode });
       if (action === 'leave') {
         setActiveCode('');
         setView(null);
         window.history.replaceState(null, '', '/');
-      } else {
+      } else if ('room' in data) {
         setView(data);
         setActiveCode(data.room.code);
         window.history.replaceState(null, '', `/?room=${data.room.code}`);

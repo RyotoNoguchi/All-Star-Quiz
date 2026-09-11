@@ -76,3 +76,7 @@ Run `npm ci` with the Node version in `.node-version`, then `npm run check` befo
 ## Guest sessions
 
 [ゲスト認証 ADR-005](docs/AUTHENTICATION.md) describes stable guest identities, 30-day HttpOnly sessions, expiry, legacy-cookie migration and membership across tabs and rooms.
+
+## API
+
+[型付きAPI](docs/API.md) documents the tRPC client/server contract, validation, error responses and the compatible legacy endpoint.
