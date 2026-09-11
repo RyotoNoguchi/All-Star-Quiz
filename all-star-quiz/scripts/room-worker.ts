@@ -5,12 +5,23 @@ if (!code || !token) throw new Error('Missing worker parameters');
 const main = async () => {
   try {
     if (action === 'read')
-      console.log(JSON.stringify(await readRoom(code, token)));
+      console.log(
+        JSON.stringify(
+          await readRoom(
+            code,
+            (await db.user.findUniqueOrThrow({ where: { tokenHash: token } }))
+              .id
+          )
+        )
+      );
     else {
       const results = [];
       for (let i = 0; i < 13; i++) {
         try {
-          await joinRoom(code, `${token}-${i}`, `${token}-${i}`);
+          const user = await db.user.create({
+            data: { tokenHash: `${token}-${i}` },
+          });
+          await joinRoom(code, `${token}-${i}`, user.id);
           results.push(true);
         } catch {
           results.push(false);

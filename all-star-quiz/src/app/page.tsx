@@ -41,10 +41,14 @@ const Home: FC = () => {
         });
         if (controller.signal.aborted) return;
         if (!response.ok) {
-          if (response.status === 403 || response.status === 404) {
+          if (
+            response.status === 401 ||
+            response.status === 403 ||
+            response.status === 404
+          ) {
             setView(null);
             setActiveCode('');
-            if (response.status === 404) setError(data.error);
+            if (response.status !== 403) setError(data.error);
             return;
           }
           throw new Error(data.error);

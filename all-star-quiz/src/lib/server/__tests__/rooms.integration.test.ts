@@ -2,7 +2,29 @@
 import { db } from '../db';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { createRoom, joinRoom, leaveRoom, readRoom } from '../rooms';
+import {
+  createRoom as createRoomAs,
+  joinRoom as joinRoomAs,
+  leaveRoom as leaveRoomAs,
+  readRoom as readRoomAs,
+} from '../rooms';
+
+const actor = async (key: string) =>
+  (
+    await db.user.upsert({
+      where: { tokenHash: key },
+      update: { tokenHash: key },
+      create: { tokenHash: key },
+    })
+  ).id;
+const createRoom = async (name: unknown, key: string) =>
+  createRoomAs(name, await actor(key));
+const joinRoom = async (code: string, name: unknown, key: string) =>
+  joinRoomAs(code, name, await actor(key));
+const readRoom = async (code: string, key: string) =>
+  readRoomAs(code, await actor(key));
+const leaveRoom = async (code: string, key: string) =>
+  leaveRoomAs(code, await actor(key));
 
 if (!process.env.QUIZ_TEST_SCHEMA?.startsWith('quiz_test_'))
   throw new Error('Run npm run test:db to isolate database tests.');
