@@ -56,3 +56,7 @@ multiple processes or multiple servers, replace it with the planned shared datab
 and transactional storage. Polling currently synchronizes only waiting-room membership.
 
 Validation: `npm run test:run`, `npm run type-check`, `npm run build`.
+
+## Development backlog
+
+See [the GitHub implementation roadmap](https://github.com/RyotoNoguchi/All-Star-Quiz/issues/28) for all 27 remaining tasks, acceptance criteria, and dependencies. A local copy is in [docs/GITHUB_BACKLOG.md](docs/GITHUB_BACKLOG.md).

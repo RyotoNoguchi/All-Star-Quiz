@@ -8,13 +8,13 @@
 
 ### 1. プロジェクト基盤とセットアップ
 
-- [ ] 1.1 Next.js 15プロジェクトの初期化とTypeScript設定
+- [x] 1.1 Next.js 15プロジェクトの初期化とTypeScript設定
   - Next.js 15 (App Router) プロジェクトを作成
   - TypeScript strict mode設定
   - ESLint + Prettier設定
   - _要件: 1.1_
 
-- [ ] 1.2 UI基盤の構築（Tailwind CSS + shadcn/ui）
+- [x] 1.2 UI基盤の構築（Tailwind CSS + shadcn/ui）
   - Tailwind CSS設定とカスタムテーマ作成
   - shadcn/ui コンポーネントライブラリ導入
   - 基本レイアウトコンポーネント作成
@@ -214,3 +214,8 @@
 - 出題・回答同期・脱落判定は未実装。次の実装対象とする。
 - 旧デモは `/demo` に移動。タイマーの丸め誤差・再スタート・Resetを修正。
 - 単体テスト18件、本番ビルド、独立したセッションでのHTTP結合確認を実施。
+
+
+## GitHub Issue管理（2026-09-11）
+
+残タスク27件と実装順を https://github.com/RyotoNoguchi/All-Star-Quiz/issues/28 に集約。各タスクの完了条件・依存関係はGitHub Issueを参照。対応表は `docs/GITHUB_BACKLOG.md` に記載。1.3は品質スクリプトとCIの残作業を含むため未完了のままとする。
