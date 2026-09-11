@@ -1,5 +1,5 @@
 @import 'tailwindcss';
-@import "tw-animate-css";
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -126,15 +126,15 @@
   .quiz-pulse {
     animation: quiz-pulse 1s ease-in-out infinite;
   }
-  
+
   .quiz-shake {
     animation: quiz-shake 0.5s ease-in-out;
   }
-  
+
   .quiz-bounce {
     animation: quiz-bounce 1s ease-in-out;
   }
-  
+
   .gradient-text {
     background: linear-gradient(45deg, #fbbf24, #f59e0b, #d97706);
     -webkit-background-clip: text;
@@ -144,17 +144,34 @@
 }
 
 @keyframes quiz-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
 }
 
 @keyframes quiz-shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-5px); }
-  75% { transform: translateX(5px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
 }
 
 @keyframes quiz-bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }

@@ -6,15 +6,16 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "lint:fix": "next lint --fix",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "type-check": "tsc --noEmit",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:transport": "node scripts/check-realtime.mjs"
+    "test:transport": "node scripts/check-realtime.mjs",
+    "check": "npm run lint && npm run format:check && npm run test:run && npm run test:transport && npm run type-check && npm run build"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.14",
@@ -52,5 +53,8 @@
     "tw-animate-css": "^1.3.5",
     "typescript": "^5",
     "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=22.22.0 <23"
   }
 }

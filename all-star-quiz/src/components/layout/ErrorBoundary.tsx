@@ -1,38 +1,38 @@
-'use client'
+'use client';
 
-import { Component, type ReactNode, type ErrorInfo } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Component, type ReactNode, type ErrorInfo } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type Props = {
-  children: ReactNode
-  fallback?: ReactNode
-}
+  children: ReactNode;
+  fallback?: ReactNode;
+};
 
 type State = {
-  hasError: boolean
-  error?: Error
-}
+  hasError: boolean;
+  error?: Error;
+};
 
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
-    super(props)
-    this.state = { hasError: false }
+    super(props);
+    this.state = { hasError: false };
   }
 
   static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error }
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo)
+    console.error('ErrorBoundary caught an error:', error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
-        return this.props.fallback
+        return this.props.fallback;
       }
 
       return (
@@ -47,16 +47,16 @@ export class ErrorBoundary extends Component<Props, State> {
                 ページを再読み込みしてお試しください。
               </AlertDescription>
             </Alert>
-            
+
             <div className="space-y-4">
-              <Button 
+              <Button
                 onClick={() => window.location.reload()}
                 className="w-full"
               >
                 ページを再読み込み
               </Button>
-              
-              <Button 
+
+              <Button
                 variant="outline"
                 onClick={() => window.history.back()}
                 className="w-full"
@@ -77,37 +77,33 @@ export class ErrorBoundary extends Component<Props, State> {
             )}
           </Card>
         </div>
-      )
+      );
     }
 
-    return this.props.children
+    return this.props.children;
   }
 }
 
 // ゲーム専用のErrorBoundary
-export const GameErrorBoundary: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const GameErrorBoundary: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
   const gameErrorFallback = (
     <Card className="p-6 bg-red-50/90 backdrop-blur border-red-200">
       <Alert className="border-red-300">
-        <AlertTitle className="text-red-800">
-          ゲームエラー
-        </AlertTitle>
+        <AlertTitle className="text-red-800">ゲームエラー</AlertTitle>
         <AlertDescription className="text-red-700">
           クイズゲームでエラーが発生しました。ゲームを再開してください。
         </AlertDescription>
       </Alert>
-      <Button 
+      <Button
         onClick={() => window.location.reload()}
         className="mt-4 w-full bg-red-600 hover:bg-red-700"
       >
         ゲームを再開
       </Button>
     </Card>
-  )
+  );
 
-  return (
-    <ErrorBoundary fallback={gameErrorFallback}>
-      {children}
-    </ErrorBoundary>
-  )
-}
+  return <ErrorBoundary fallback={gameErrorFallback}>{children}</ErrorBoundary>;
+};

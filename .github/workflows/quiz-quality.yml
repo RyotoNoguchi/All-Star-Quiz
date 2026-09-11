@@ -1,0 +1,28 @@
+name: Quiz quality
+on:
+  pull_request:
+    paths: ["all-star-quiz/**", ".github/workflows/quiz-quality.yml"]
+  push:
+    branches: [main]
+    paths: ["all-star-quiz/**", ".github/workflows/quiz-quality.yml"]
+permissions:
+  contents: read
+concurrency:
+  group: quiz-quality-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: all-star-quiz
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: all-star-quiz/.node-version
+          cache: npm
+          cache-dependency-path: all-star-quiz/package-lock.json
+      - run: npm ci
+      - run: npm run check

@@ -12,12 +12,12 @@ Vercelの現行資料ではWebSocketとSocket.IOのWebSocket transportがBetaで
 
 ## 接続とデータの責任
 
-| 接続 | 用途・認証 |
-|---|---|
-| ブラウザー → Vercel HTTPS | ルーム／認証／問題管理。HttpOnlyの同一ホストCookie |
-| ブラウザー → realtime HTTPS/WSS | `/socket.io`、WebSocketのみ。HTTPで取得する短命の接続チケットをhandshake.authに渡す（URLには含めない） |
-| Next.js／常駐サーバー → PostgreSQL | TLS、サーバー資格情報のみ。会員・参加権・問題・回答・結果の正本 |
-| Next.js／常駐サーバー → Redis | 認証TLS接続。ルーム状態・イベント通知・存在確認・期限処理 |
+| 接続                               | 用途・認証                                                                                             |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| ブラウザー → Vercel HTTPS          | ルーム／認証／問題管理。HttpOnlyの同一ホストCookie                                                     |
+| ブラウザー → realtime HTTPS/WSS    | `/socket.io`、WebSocketのみ。HTTPで取得する短命の接続チケットをhandshake.authに渡す（URLには含めない） |
+| Next.js／常駐サーバー → PostgreSQL | TLS、サーバー資格情報のみ。会員・参加権・問題・回答・結果の正本                                        |
+| Next.js／常駐サーバー → Redis      | 認証TLS接続。ルーム状態・イベント通知・存在確認・期限処理                                              |
 
 Cookieを別ドメインに広げない。#5・#10でDBの同じ参加者IDに紐づく短命チケットを発行・検証し、roomId・有効期限・nonceで制限する。Origin許可リストは完全一致で、CORSだけを認証代わりにしない。資格情報をNEXT_PUBLIC変数に置かない。プレビュー環境は本番のDB／Redis／鍵と分離する。
 
@@ -35,17 +35,17 @@ Socket.IOはWebSocketのみを使うためHTTP polling用のsticky sessionは不
 
 `.env.example` は値の形式のみ。実値は開発環境かホスティングのシークレット管理に保存する。
 
-| 名前 | 使用先 | 意味 |
-|---|---|---|
-| DATABASE_URL | 両サーバー | PostgreSQL接続（Next.jsはプーリング接続） |
-| DIRECT_URL | マイグレーション | PostgreSQL直接接続 |
-| REDIS_URL | 両サーバー | Pub/Sub対応のredis(s) URL。REST専用URLは不可 |
-| AUTH_SECRET | Next.js | 認証鍵（#5） |
-| REALTIME_TICKET_SECRET | 両サーバー | 短命接続チケット署名鍵（#10） |
-| APP_ORIGIN | 両サーバー | 利用者向けの単一Origin |
-| ALLOWED_ORIGINS | 常駐サーバー | 許可Originのカンマ区切り |
-| NEXT_PUBLIC_REALTIME_URL | ブラウザー | 常駐サーバーの公開HTTPS URL |
-| PORT | 常駐サーバー | コンテナのHTTP待受ポート |
+| 名前                     | 使用先           | 意味                                         |
+| ------------------------ | ---------------- | -------------------------------------------- |
+| DATABASE_URL             | 両サーバー       | PostgreSQL接続（Next.jsはプーリング接続）    |
+| DIRECT_URL               | マイグレーション | PostgreSQL直接接続                           |
+| REDIS_URL                | 両サーバー       | Pub/Sub対応のredis(s) URL。REST専用URLは不可 |
+| AUTH_SECRET              | Next.js          | 認証鍵（#5）                                 |
+| REALTIME_TICKET_SECRET   | 両サーバー       | 短命接続チケット署名鍵（#10）                |
+| APP_ORIGIN               | 両サーバー       | 利用者向けの単一Origin                       |
+| ALLOWED_ORIGINS          | 常駐サーバー     | 許可Originのカンマ区切り                     |
+| NEXT_PUBLIC_REALTIME_URL | ブラウザー       | 常駐サーバーの公開HTTPS URL                  |
+| PORT                     | 常駐サーバー     | コンテナのHTTP待受ポート                     |
 
 ## 起動と検証
 

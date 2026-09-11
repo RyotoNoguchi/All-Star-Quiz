@@ -10,6 +10,16 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  {
+    ignores: [
+      '.next/**',
+      'out/**',
+      'build/**',
+      'coverage/**',
+      'next-env.d.ts',
+      '.data/**',
+    ],
+  },
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
   ...compat.extends('prettier'),
   {
@@ -19,7 +29,7 @@ const eslintConfig = [
       '@typescript-eslint/no-explicit-any': 'warn',
       'react/no-unescaped-entities': 'error',
       'react/jsx-no-target-blank': 'error',
-      
+
       // CLAUDE.md Coding Standards - Arrow Functions for ALL functions
       'react/function-component-definition': [
         'warn',
@@ -35,7 +45,7 @@ const eslintConfig = [
           allowArrowFunctions: true,
         },
       ],
-      
+
       // CLAUDE.md Coding Standards - TypeScript Rules
       'prefer-const': 'warn',
       '@typescript-eslint/consistent-type-imports': [
@@ -46,7 +56,7 @@ const eslintConfig = [
         },
       ],
       // Note: interface vs type enforcement would need custom rule or different approach
-      
+
       // CLAUDE.md Coding Standards - Export Style Rules
       'import/prefer-default-export': 'off',
       'react/jsx-no-useless-fragment': 'warn',
