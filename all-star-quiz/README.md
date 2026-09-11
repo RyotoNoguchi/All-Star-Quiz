@@ -80,3 +80,7 @@ Run `npm ci` with the Node version in `.node-version`, then `npm run check` befo
 ## API
 
 [型付きAPI](docs/API.md) documents the tRPC client/server contract, validation, error responses and the compatible legacy endpoint.
+
+## Administration
+
+[管理者のセットアップと権限](docs/ADMIN.md) describes account provisioning, login, expiry and the separation between administrators and room hosts.
