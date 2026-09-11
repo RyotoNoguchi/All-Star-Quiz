@@ -29,10 +29,11 @@ enum Choice {
 }
 
 model User {
-  id           String        @id @default(uuid())
-  tokenHash    String        @unique
-  createdAt    DateTime      @default(now())
+  id           String         @id @default(uuid())
+  tokenHash    String?        @unique
+  createdAt    DateTime       @default(now())
   participants Participant[]
+  sessions     GuestSession[]
 }
 
 model Game {
@@ -128,4 +129,15 @@ model GameResult {
   statistics  Json
   completedAt DateTime @default(now())
   game        Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+}
+
+model GuestSession {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
 }

@@ -72,3 +72,7 @@ See [the GitHub implementation roadmap](https://github.com/RyotoNoguchi/All-Star
 Run `npm ci` with the Node version in `.node-version`, then `npm run check` before opening a PR. This runs ESLint, Prettier, unit tests, the Socket.IO transport probe, TypeScript, and the production build. GitHub Actions runs the same sequence on pull requests and main.
 
 `npm run format` formats the project source, configuration and documentation. Generated build files, dependencies, local data, environment files and the lockfile are excluded. The initial formatting baseline is included with the CI setup.
+
+## Guest sessions
+
+[ゲスト認証 ADR-005](docs/AUTHENTICATION.md) describes stable guest identities, 30-day HttpOnly sessions, expiry, legacy-cookie migration and membership across tabs and rooms.

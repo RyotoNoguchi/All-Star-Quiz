@@ -1,4 +1,10 @@
-import { randomBytes } from 'node:crypto';
+import {
+  createGuestSession,
+  requestIdentity,
+  requireIdentity,
+  SessionError,
+  setSessionCookie,
+} from '@/lib/server/session';
 import { type NextRequest, NextResponse } from 'next/server';
 import {
   createRoom,
@@ -9,12 +15,9 @@ import {
 } from '@/lib/server/rooms';
 
 export const runtime = 'nodejs';
-const COOKIE = 'quiz-participant';
-const sessionToken = (request: NextRequest) => {
-  const value = request.cookies.get(COOKIE)?.value || '';
-  return /^[a-f0-9]{64}$/.test(value) ? value : '';
-};
 const failure = (error: unknown) => {
+  if (error instanceof SessionError)
+    return NextResponse.json({ error: error.message }, { status: 401 });
   if (error instanceof RoomError)
     return NextResponse.json(
       { error: error.message },
@@ -28,9 +31,10 @@ const failure = (error: unknown) => {
 };
 export const GET = async (request: NextRequest) => {
   try {
+    const identity = await requireIdentity(request);
     const result = await readRoom(
       request.nextUrl.searchParams.get('code') || '',
-      sessionToken(request)
+      identity.userId
     );
     return NextResponse.json(result, {
       headers: { 'Cache-Control': 'no-store' },
@@ -48,26 +52,25 @@ export const POST = async (request: NextRequest) => {
     });
     if (!body || typeof body !== 'object')
       throw new RoomError('リクエストの形式が不正です。');
-    const token = sessionToken(request) || randomBytes(32).toString('hex');
+    if (!['create', 'join', 'leave'].includes(body.action))
+      throw new RoomError('操作が不正です。');
+    const identity =
+      body.action === 'leave'
+        ? await requireIdentity(request)
+        : (await requestIdentity(request)) || (await createGuestSession());
     const code =
       typeof body.code === 'string' ? body.code.trim().toUpperCase() : '';
     const result =
       body.action === 'create'
-        ? await createRoom(body.name, token)
+        ? await createRoom(body.name, identity.userId)
         : body.action === 'join'
-          ? await joinRoom(code, body.name, token)
+          ? await joinRoom(code, body.name, identity.userId)
           : body.action === 'leave'
-            ? await leaveRoom(code, token)
+            ? await leaveRoom(code, identity.userId)
             : null;
     if (!result) throw new RoomError('操作が不正です。');
     const response = NextResponse.json(result);
-    response.cookies.set(COOKIE, token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: request.nextUrl.protocol === 'https:',
-      path: '/',
-      maxAge: 86400,
-    });
+    setSessionCookie(response, identity, request.nextUrl.protocol === 'https:');
     return response;
   } catch (error) {
     return failure(error);

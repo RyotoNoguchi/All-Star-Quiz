@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { Prisma, type Game, type Participant } from '@prisma/client';
 import type { RoomView } from '@/types/room';
 import { GAME_CONFIG } from '@/config/game';
@@ -12,8 +12,6 @@ export class RoomError extends Error {
     super(message);
   }
 }
-export const participantTokenHash = (token: string) =>
-  createHash('sha256').update(token).digest('hex');
 const validateName = (name: unknown) => {
   if (typeof name !== 'string' || !name.trim() || name.trim().length > 20)
     throw new RoomError('名前を1〜20文字で入力してください。');
@@ -90,34 +88,29 @@ const withRoom = async <T>(
 const member = async (
   tx: Prisma.TransactionClient,
   gameId: string,
-  token: string
+  userId: string
 ) => {
   const player = await tx.participant.findFirst({
-    where: { gameId, user: { tokenHash: participantTokenHash(token) } },
+    where: { gameId, userId },
   });
   if (!player) throw new RoomError('このルームに参加してください。', 403);
   return player;
 };
 export const createRoom = async (
   name: unknown,
-  token: string
+  userId: string
 ): Promise<RoomView> => {
   const playerName = validateName(name);
   // Retry the rare random code collision or concurrent creation of the same identity.
   for (let attempt = 0; attempt < 5; attempt++) {
     try {
       return await db.$transaction(async (tx) => {
-        const user = await tx.user.upsert({
-          where: { tokenHash: participantTokenHash(token) },
-          update: {},
-          create: { tokenHash: participantTokenHash(token) },
-        });
         const game = await tx.game.create({
           data: {
             code: randomBytes(3).toString('hex').toUpperCase(),
             expiresAt: new Date(Date.now() + 86400000),
             participants: {
-              create: { userId: user.id, name: playerName, isHost: true },
+              create: { userId, name: playerName, isHost: true },
             },
           },
           include: includeParticipants,
@@ -137,13 +130,13 @@ export const createRoom = async (
     503
   );
 };
-export const joinRoom = async (code: string, name: unknown, token: string) => {
+export const joinRoom = async (code: string, name: unknown, userId: string) => {
   const playerName = validateName(name);
   return withRoom(code, async (tx, game) => {
     const existing = await tx.participant.findFirst({
       where: {
         gameId: game.id,
-        user: { tokenHash: participantTokenHash(token) },
+        userId,
       },
     });
     if (existing) return view(game, existing.id);
@@ -154,13 +147,8 @@ export const joinRoom = async (code: string, name: unknown, token: string) => {
         'その名前は使用されています。別の名前を入力してください。',
         409
       );
-    const user = await tx.user.upsert({
-      where: { tokenHash: participantTokenHash(token) },
-      update: {},
-      create: { tokenHash: participantTokenHash(token) },
-    });
     const player = await tx.participant.create({
-      data: { gameId: game.id, userId: user.id, name: playerName },
+      data: { gameId: game.id, userId, name: playerName },
     });
     await tx.game.update({
       where: { id: game.id },
@@ -172,13 +160,13 @@ export const joinRoom = async (code: string, name: unknown, token: string) => {
     );
   });
 };
-export const readRoom = (code: string, token: string) =>
+export const readRoom = (code: string, userId: string) =>
   withRoom(code, async (tx, game) =>
-    view(game, (await member(tx, game.id, token)).id)
+    view(game, (await member(tx, game.id, userId)).id)
   );
-export const leaveRoom = (code: string, token: string) =>
+export const leaveRoom = (code: string, userId: string) =>
   withRoom(code, async (tx, game) => {
-    const player = await member(tx, game.id, token);
+    const player = await member(tx, game.id, userId);
     await tx.participant.delete({ where: { id: player.id } });
     const remaining = game.participants.filter(
       (other) => other.id !== player.id
