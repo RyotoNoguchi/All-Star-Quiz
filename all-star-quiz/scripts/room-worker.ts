@@ -1,4 +1,5 @@
 import { joinRoom, readRoom } from '../src/lib/server/rooms';
+import { closeSharedStore } from '../src/lib/server/shared-state';
 import { db } from '../src/lib/server/db';
 const [action, code, token] = process.argv.slice(2);
 if (!code || !token) throw new Error('Missing worker parameters');
@@ -30,6 +31,7 @@ const main = async () => {
       console.log(JSON.stringify(results));
     }
   } finally {
+    closeSharedStore();
     await db.$disconnect();
   }
 };

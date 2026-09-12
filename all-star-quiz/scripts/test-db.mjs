@@ -15,6 +15,8 @@ const env = {
   DATABASE_URL: url.href,
   DIRECT_URL: url.href,
   QUIZ_TEST_SCHEMA: schema,
+  REDIS_URL: process.env.TEST_REDIS_URL || '',
+  QUIZ_REDIS_PREFIX: schema,
 };
 const admin = new PrismaClient({
   datasources: { db: { url: process.env.TEST_DATABASE_URL } },
