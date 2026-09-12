@@ -13,6 +13,7 @@ const eslintConfig = [
   {
     ignores: [
       '.next/**',
+      '.realtime/**',
       'out/**',
       'build/**',
       'coverage/**',
