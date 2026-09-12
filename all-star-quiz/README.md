@@ -90,3 +90,7 @@ Run `npm ci` with the Node version in `.node-version`, then `npm run check` befo
 [問題管理API](docs/QUESTIONS.md) covers administrator CRUD, category selection and immutable game question sets.
 [共有状態](docs/SHARED_STATE.md) covers the Redis cache, expiring leases, PostgreSQL authority and recovery.
 Run `docker compose up -d` for both PostgreSQL and Redis. Configure `TEST_DATABASE_URL` and `TEST_REDIS_URL` from `.env.example` before running `npm run check`; its database integration suite also verifies Redis with an isolated key prefix.
+
+## Persistent realtime server
+
+[常駐通信サーバー](docs/REALTIME.md) documents authenticated tickets, allowed origins, multi-instance delivery and startup. Set a real `REALTIME_TICKET_SECRET`, run `npm run build`, then `npm run realtime:start` alongside the web server. Browser integration follows in Issue #16.

@@ -50,3 +50,5 @@ AI_INSTRUCTIONSmd
 /.data/
 
 !.env.example
+
+.realtime/
