@@ -1,3 +1,4 @@
+import { scoreQuestion } from '../scoring';
 import { randomUUID } from 'node:crypto';
 import { db } from '../db';
 import { createGuestSession } from '../session';
@@ -118,6 +119,22 @@ it('closes exactly once at the persisted deadline and advances results to the fi
     command(game.id, game.version)
   );
   expect((await maintainGame(game.id)).phase).toBe('playing');
+  const question = await db.gameQuestion.findFirstOrThrow({
+    where: { gameId: game.id, position: 0 },
+  });
+  await db.answer.create({
+    data: {
+      gameId: game.id,
+      gameQuestionId: question.id,
+      participantId: game.participants[0]!.id,
+      requestId: randomUUID(),
+      choice: 'A',
+      receivedAt: new Date(started.startedAt! + 100),
+      responseTime: 100,
+      acceptanceSequence: 0,
+      isCorrect: true,
+    },
+  });
   await db.game.update({
     where: { id: game.id },
     data: { deadlineAt: new Date(0) },
@@ -132,7 +149,7 @@ it('closes exactly once at the persisted deadline and advances results to the fi
   await expect(
     runHostCommand(host.userId, command(game.id, one.version, 'next'))
   ).rejects.toMatchObject({ reason: 'INVALID_PHASE' });
-  const results = await withGame(game.id, completeQuestion);
+  const results = await withGame(game.id, scoreQuestion);
   expect(results.phase).toBe('results');
   const next = await runHostCommand(
     host.userId,
@@ -144,8 +161,8 @@ it('closes exactly once at the persisted deadline and advances results to the fi
     where: { id: game.id },
     data: { deadlineAt: new Date(0) },
   });
-  await maintainGame(game.id);
-  const final = await withGame(game.id, completeQuestion);
+  await withGame(game.id, closeQuestionIfReady);
+  const final = await withGame(game.id, scoreQuestion);
   expect(final).toMatchObject({
     phase: 'finished',
     finishReason: 'final_question',
@@ -223,7 +240,7 @@ it('handles cancellation, explicit host departure, all-left and all-eliminated t
     where: { gameId: eliminated.game.id },
     data: { isEliminated: true },
   });
-  expect(await withGame(eliminated.game.id, completeQuestion)).toMatchObject({
+  expect(await withGame(eliminated.game.id, scoreQuestion)).toMatchObject({
     phase: 'finished',
     finishReason: 'all_eliminated',
   });

@@ -8,7 +8,7 @@
 
 常駐通信プロセスは250msごとにDB上の未終了ゲームを確認します。締切到達または全生存者の回答が保存済みならplayingからclosingへ一度だけ遷移します。DB時刻を再読込するため、タイマーを失う再起動にも対応します。`closeQuestionIfReady` は回答受付・退出と同じトランザクションからも呼べます。回答の保存と締切直前の受付順はIssue #12で実装します。
 
-判定処理用の `completeQuestion` はclosingから通常問題のresults、最終問題のfinished/final_question、生存者0人のfinished/all_eliminatedへ遷移します。通常問題の脱落判定と結果保存はIssue #13で接続済みです。最終問題はIssue #14で優勝判定を接続するまでclosingで待ちます。
+判定処理用の `completeQuestion` はclosingから通常問題のresults、最終問題のfinished/final_question、生存者0人のfinished/all_eliminatedへ遷移します。通常問題の脱落判定と結果保存はIssue #13で接続済みです。最終問題の優勝判定もIssue #14で接続済みです。判定・結果保存・終了通知を同一トランザクションで確定します。
 
 開始後の `games.leave({ gameId })` は記録を残して生存者をleftで脱落させます。ホストは未退出者の参加順で引き継ぎ、全員退出ならall_leftで終了します。作成から24時間経過したゲームはexpiredで終了します。
 

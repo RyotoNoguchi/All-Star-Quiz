@@ -186,7 +186,7 @@ it('admits a request while the game is locked and honors its time even if proces
   const receipt = await submitAnswer(host.userId, input);
   expect(receipt.answeredAt).toBe(submission.receivedAt.getTime());
   expect(await db.game.findUnique({ where: { id: game.id } })).toMatchObject({
-    phase: 'closing',
+    phase: 'finished',
   });
 });
 it('accepts one of concurrent distinct requests and preserves deterministic ordering for tied milliseconds', async () => {
@@ -212,7 +212,7 @@ it('accepts one of concurrent distinct requests and preserves deterministic orde
   ]);
   expect(answers.map((answer) => answer.isCorrect)).toEqual([true, false]);
   expect(await db.game.findUnique({ where: { id: game.id } })).toMatchObject({
-    phase: 'closing',
+    phase: 'finished',
   });
   const other = await setup();
   const results = await Promise.allSettled([

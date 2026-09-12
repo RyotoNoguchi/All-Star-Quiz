@@ -1,4 +1,4 @@
-import { normalEliminations } from '../scoring';
+import { normalEliminations, finalOutcome } from '../scoring';
 const players = ['a', 'b', 'c'].map((id) => ({
   id,
   isEliminated: false,
@@ -62,4 +62,34 @@ it('does not mutate the supplied players or answer ordering', () => {
   const before = structuredClone({ players, answers });
   normalEliminations(players, answers);
   expect({ players, answers }).toEqual(before);
+});
+
+it('awards the fastest correct finalist and keeps other correct finalists alive', () => {
+  expect(
+    finalOutcome(players, [
+      answer('a', 200, 1),
+      answer('b', 100, 3),
+      answer('c', 100, 2),
+    ])
+  ).toEqual({ winnerId: 'c', eliminated: [] });
+});
+it('has no winner without correct answers and never promotes an eliminated or departed finalist', () => {
+  expect(finalOutcome(players, [answer('a', 100, 1, false)])).toEqual({
+    winnerId: undefined,
+    eliminated: [
+      { playerId: 'a', reason: 'wrong' },
+      { playerId: 'b', reason: 'timeout' },
+      { playerId: 'c', reason: 'timeout' },
+    ],
+  });
+  expect(
+    finalOutcome(
+      [
+        { ...players[0]!, hasLeft: true },
+        { ...players[1]!, isEliminated: true },
+        players[2]!,
+      ],
+      [answer('a', 10, 1), answer('b', 20, 2), answer('c', 30, 3)]
+    )
+  ).toEqual({ winnerId: 'c', eliminated: [] });
 });

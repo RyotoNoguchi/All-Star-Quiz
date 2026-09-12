@@ -1,3 +1,5 @@
+import { persistGameResult } from './game-results';
+import { questionResultSchema } from '../result-schema';
 import { databaseTime, drainAnswers } from './answer-queue';
 import type { Game, Prisma } from '@prisma/client';
 import { z } from 'zod';
@@ -42,7 +44,7 @@ export const withGame = async <T>(
       if (!game)
         return new GameFlowError('GAME_NOT_FOUND', 'ゲームが見つかりません。');
       if (game.expiresAt.getTime() <= Date.now() && game.phase !== 'finished') {
-        await tx.game.update({
+        const expired = await tx.game.update({
           where: { id: gameId },
           data: {
             phase: 'finished',
@@ -50,6 +52,7 @@ export const withGame = async <T>(
             version: { increment: 1 },
           },
         });
+        await persistGameResult(tx, expired);
         return new GameFlowError(
           'INVALID_PHASE',
           'ゲームの有効期限が切れました。'
@@ -147,7 +150,11 @@ export const runHostCommand = async (
       if (starting)
         await tx.participant.updateMany({
           where: { gameId: game.id, leftAt: null },
-          data: { isEliminated: false, eliminationReason: null },
+          data: {
+            isEliminated: false,
+            eliminationReason: null,
+            eliminatedAtQuestion: null,
+          },
         });
       const now = (await databaseTime(tx)).getTime();
       updated = await tx.game.update({
@@ -161,6 +168,7 @@ export const runHostCommand = async (
         },
       });
     }
+    await persistGameResult(tx, updated);
     const response = progressView(updated);
     await tx.gameCommand.create({ data: { ...input, userId, response } });
     return response;
@@ -231,14 +239,31 @@ export const completeQuestion = async (
       : living === 0
         ? 'all_eliminated'
         : null;
-  return tx.game.update({
+  const result = questionResultSchema.parse(question.result);
+  const published = await tx.game.update({
+    where: { id: game.id },
+    data: { phase: 'results', version: { increment: 1 } },
+  });
+  await tx.gameEventRecord.create({
+    data: {
+      gameId: game.id,
+      version: published.version,
+      type: 'QUESTION_ENDED',
+      payload: result,
+      createdAt: await databaseTime(tx),
+    },
+  });
+  if (!reason) return published;
+  const finished = await tx.game.update({
     where: { id: game.id },
     data: {
-      phase: reason ? 'finished' : 'results',
+      phase: 'finished',
       finishReason: reason,
       version: { increment: 1 },
     },
   });
+  await persistGameResult(tx, finished);
+  return finished;
 };
 export const leaveStartedGame = (gameId: string, userId: string) =>
   withGame(gameId, async (tx, game) => {
@@ -259,7 +284,11 @@ export const leaveStartedGame = (gameId: string, userId: string) =>
         leftAt: new Date(),
         isHost: false,
         ...(!player.isEliminated
-          ? { isEliminated: true, eliminationReason: 'left' }
+          ? {
+              isEliminated: true,
+              eliminationReason: 'left',
+              eliminatedAtQuestion: game.currentQuestionIndex,
+            }
           : {}),
       },
     });
@@ -283,5 +312,7 @@ export const leaveStartedGame = (gameId: string, userId: string) =>
             : {}),
       },
     });
-    return progressView(await closeQuestionIfReady(tx, updated));
+    const closed = await closeQuestionIfReady(tx, updated);
+    await persistGameResult(tx, closed);
+    return progressView(closed);
   });

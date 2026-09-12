@@ -1,7 +1,7 @@
 import type { Game, Participant, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import type { PublicPlayer, QuestionResult } from '@/types/game';
-import { normalEliminations } from '../scoring';
+import { normalEliminations, finalOutcome } from '../scoring';
 import { questionSnapshotSchema } from '../question-schema';
 import { completeQuestion } from './game-flow';
 import { databaseTime } from './answer-queue';
@@ -20,7 +20,7 @@ export const publicParticipant = (player: Participant): PublicPlayer => ({
     : {}),
   ...(player.leftAt ? { leftAt: player.leftAt.getTime() } : {}),
 });
-export const scoreNormalQuestion = async (
+export const scoreQuestion = async (
   tx: Prisma.TransactionClient,
   game: Game
 ) => {
@@ -32,7 +32,6 @@ export const scoreNormalQuestion = async (
   });
   if (question.result !== null) return game;
   const snapshot = questionSnapshotSchema.parse(question.snapshot);
-  if (snapshot.type !== 'normal') return game;
   const players = await tx.participant.findMany({
     where: { gameId: game.id },
     orderBy: { joinedOrder: 'asc' },
@@ -41,23 +40,33 @@ export const scoreNormalQuestion = async (
     where: { gameQuestionId: question.id },
     orderBy: { acceptanceSequence: 'asc' },
   });
-  const eliminated = normalEliminations(
-    players.map((p) => ({
-      id: p.id,
-      isEliminated: p.isEliminated,
-      hasLeft: p.leftAt !== null,
-    })),
-    answers.map((a) => ({
-      playerId: a.participantId,
-      isCorrect: a.isCorrect,
-      responseTime: a.responseTime,
-      acceptanceSequence: a.acceptanceSequence,
-    }))
-  );
+  const scoringPlayers = players.map((p) => ({
+    id: p.id,
+    isEliminated: p.isEliminated,
+    hasLeft: p.leftAt !== null,
+  }));
+  const scoringAnswers = answers.map((a) => ({
+    playerId: a.participantId,
+    isCorrect: a.isCorrect,
+    responseTime: a.responseTime,
+    acceptanceSequence: a.acceptanceSequence,
+  }));
+  const outcome =
+    snapshot.type === 'final'
+      ? finalOutcome(scoringPlayers, scoringAnswers)
+      : {
+          eliminated: normalEliminations(scoringPlayers, scoringAnswers),
+          winnerId: undefined,
+        };
+  const { eliminated, winnerId } = outcome;
   for (const player of eliminated)
     await tx.participant.update({
       where: { id: player.playerId },
-      data: { isEliminated: true, eliminationReason: player.reason },
+      data: {
+        isEliminated: true,
+        eliminationReason: player.reason,
+        eliminatedAtQuestion: game.currentQuestionIndex,
+      },
     });
   const updated = await tx.participant.findMany({
     where: { gameId: game.id },
@@ -66,7 +75,8 @@ export const scoreNormalQuestion = async (
   const result: QuestionResult = {
     questionId: question.questionId,
     correctAnswer: snapshot.answer,
-    isFinal: false,
+    isFinal: snapshot.type === 'final',
+    ...(winnerId ? { winnerId } : {}),
     ...(snapshot.explanation ? { explanation: snapshot.explanation } : {}),
     answers: answers.map((answer) => ({
       playerId: answer.participantId,
