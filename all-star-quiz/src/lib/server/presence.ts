@@ -46,7 +46,7 @@ export const disconnectConnection = async (
   });
 export const maintainGame = (gameId: string) =>
   withGame(gameId, async (tx, game) => {
-    if (game.phase === 'finished') return game;
+    if (game.phase === 'finished') return closeQuestionIfReady(tx, game);
     const now = new Date();
     const players = await tx.participant.findMany({
       where: { gameId, leftAt: null },
@@ -85,7 +85,12 @@ export const maintainGame = (gameId: string) =>
   });
 export const sweepGames = async () => {
   const games = await db.game.findMany({
-    where: { phase: { not: 'finished' } },
+    where: {
+      OR: [
+        { phase: { not: 'finished' } },
+        { submissions: { some: { processedAt: null } } },
+      ],
+    },
     select: { id: true },
   });
   for (const game of games) {

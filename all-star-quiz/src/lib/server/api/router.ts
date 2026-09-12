@@ -1,3 +1,4 @@
+import { answersRouter } from './answers';
 import { gamesRouter } from './games';
 import { realtimeRouter } from './realtime';
 import { questionsRouter } from './questions';
@@ -6,6 +7,7 @@ import { trpc } from './trpc';
 import { roomsRouter } from './rooms';
 export const appRouter = trpc.router({
   rooms: roomsRouter,
+  answers: answersRouter,
   games: gamesRouter,
   realtime: realtimeRouter,
   questions: questionsRouter,

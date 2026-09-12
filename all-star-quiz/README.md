@@ -98,3 +98,7 @@ Run `docker compose up -d` for both PostgreSQL and Redis. Configure `TEST_DATABA
 ## Game progression
 
 [ゲーム進行API](docs/GAME_PROGRESS.md) covers host commands, persisted deadlines, idempotency, departures and host transfer. The realtime process runs deadline maintenance. Answer acceptance and scoring follow in Issues #12–#14; browser gameplay follows in Issues #16–#18.
+
+## Answer acceptance
+
+[回答受付API](docs/ANSWERS.md) describes authenticated HTTP/Socket.IO submission, server timestamps, exclusive deadlines, durable admission and retry behavior.
