@@ -73,6 +73,9 @@ model Participant {
 }
 
 model Question {
+  version Int @default(0)
+  archivedAt DateTime?
+  choiceImages Json @default("{}")
   id          String         @id @default(uuid())
   question    String
   choices     Json

@@ -16,12 +16,14 @@ it('does not serialize the answer, final flag or explanation before results', ()
     timeLimit: 10,
     explanation: '秘密の解説',
     category: '一般',
+    choiceImages: { A: { url: 'https://example.test/a.png', alt: '画像' } },
   });
   expect(JSON.parse(JSON.stringify(publicQuestion))).toEqual({
     id: 'q1',
     question: '問題',
     choices: { A: '1', B: '2', C: '3', D: '4' },
     category: '一般',
+    choiceImages: { A: { url: 'https://example.test/a.png', alt: '画像' } },
   });
 });
 

@@ -11,6 +11,16 @@ export const toPublicQuestion = (question: Question): PublicQuestion => ({
   id: question.id,
   question: question.question,
   choices: { ...question.choices },
+  ...(question.choiceImages
+    ? {
+        choiceImages: Object.fromEntries(
+          (['A', 'B', 'C', 'D'] as const).flatMap((key) => {
+            const value = question.choiceImages?.[key];
+            return value ? [[key, { url: value.url, alt: value.alt }]] : [];
+          })
+        ),
+      }
+    : {}),
   ...(question.category !== undefined ? { category: question.category } : {}),
 });
 

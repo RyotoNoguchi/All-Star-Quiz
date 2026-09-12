@@ -19,6 +19,7 @@ export type Question = {
   id: string;
   question: string;
   choices: Record<Choice, string>;
+  choiceImages?: Partial<Record<Choice, { url: string; alt: string }>>;
   answer: Choice;
   timeLimit: 10;
   type: QuestionType;
@@ -130,7 +131,7 @@ export type RankingEntry = {
 };
 export type PublicQuestion = Pick<
   Question,
-  'id' | 'question' | 'choices' | 'category'
+  'id' | 'question' | 'choices' | 'choiceImages' | 'category'
 >;
 export type PublicPlayer = Pick<
   Player,
