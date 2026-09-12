@@ -3,6 +3,7 @@ import { Prisma, type Game, type Participant } from '@prisma/client';
 import type { RoomView } from '@/types/room';
 import { GAME_CONFIG } from '@/config/game';
 import { db } from './db';
+import { sharedRoom } from './shared-state';
 
 export class RoomError extends Error {
   constructor(
@@ -161,9 +162,18 @@ export const joinRoom = async (code: string, name: unknown, userId: string) => {
   });
 };
 export const readRoom = (code: string, userId: string) =>
-  withRoom(code, async (tx, game) =>
-    view(game, (await member(tx, game.id, userId)).id)
-  );
+  withRoom(code, async (tx, game) => {
+    const result = view(game, (await member(tx, game.id, userId)).id);
+    return {
+      ...result,
+      room: await sharedRoom(
+        game.id,
+        game.version,
+        result.room,
+        game.expiresAt.getTime()
+      ),
+    };
+  });
 export const leaveRoom = (code: string, userId: string) =>
   withRoom(code, async (tx, game) => {
     const player = await member(tx, game.id, userId);
