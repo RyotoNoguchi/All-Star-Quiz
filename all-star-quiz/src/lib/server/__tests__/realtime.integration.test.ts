@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { runHostCommand } from '../game-flow';
+import { maintainGame } from '../presence';
+import type { GameEvent } from '@/types/game';
 import { io, type Socket } from 'socket.io-client';
 import { NextRequest } from 'next/server';
 import { startRealtimeServer } from '../../../server/realtime';
@@ -146,7 +148,7 @@ it('isolates rooms and distributes notifications between two server instances', 
           where: { gameId_userId: { gameId: game.id, userId: peer.userId } },
         })
       ).id,
-      room: { code: room.room.code },
+      code: room.room.code,
     },
   });
   expect(JSON.stringify(response)).not.toContain('sessionHash');
@@ -244,8 +246,22 @@ it('binds socket answers to the authenticated room and returns the receipt only 
   });
   const socket = await connect(a.port, await ticket(guest, game.code));
   const other = await connect(b.port, await ticket(peer, game.code));
-  const observed: string[] = [];
-  other.onAny((name) => observed.push(name));
+  const live: GameEvent[] = [];
+  const hostLive: GameEvent[] = [];
+  other.on('GAME_EVENT', (value: GameEvent) => live.push(value));
+  socket.on('GAME_EVENT', (value: GameEvent) => hostLive.push(value));
+  const outsider = await createGuestSession();
+  const outsiderRoom = await createRoom('別室', outsider.userId);
+  const outsiderSocket = await connect(
+    b.port,
+    await ticket(outsider, outsiderRoom.room.code)
+  );
+  const leaked: GameEvent[] = [];
+  outsiderSocket.on('GAME_EVENT', (value: GameEvent) => {
+    if (value.gameId === game.id) leaked.push(value);
+  });
+  const observed: unknown[] = [];
+  other.onAny((name, payload: unknown) => observed.push({ name, payload }));
   const payload = {
     questionId: question.id,
     requestId: randomUUID(),
@@ -272,5 +288,47 @@ it('binds socket answers to the authenticated room and returns the receipt only 
       .timeout(2000)
       .emitWithAck('SUBMIT_ANSWER', { ...payload, choice: 'B' })
   ).toEqual({ ok: false, code: 'REQUEST_CONFLICT' });
-  expect(observed).toEqual([]);
+  await a.flushEvents();
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  expect(JSON.stringify(observed)).not.toContain(payload.requestId);
+  expect(JSON.stringify(observed)).not.toContain('isCorrect');
+  const synced = await socket.timeout(2000).emitWithAck('SYNC_ROOM', {});
+  expect(synced.state.ownAnswer).toEqual(response.receipt);
+  const peerState = await other.timeout(2000).emitWithAck('SYNC_ROOM', {});
+  expect(peerState.state).not.toHaveProperty('ownAnswer');
+  expect(live.some((value) => value.type === 'ANSWER_COUNT_UPDATED')).toBe(
+    true
+  );
+  await other.timeout(2000).emitWithAck('SUBMIT_ANSWER', {
+    questionId: question.id,
+    requestId: randomUUID(),
+    choice: 'B',
+  });
+  await maintainGame(game.id);
+  await a.flushEvents();
+  await vi.waitFor(() => {
+    expect(live.some((value) => value.type === 'GAME_ENDED')).toBe(true);
+    expect(hostLive.some((value) => value.type === 'GAME_ENDED')).toBe(true);
+  });
+  for (const stream of [live, hostLive]) {
+    expect(stream.slice(-3).map((value) => value.type)).toEqual([
+      'QUESTION_CLOSED',
+      'QUESTION_ENDED',
+      'GAME_ENDED',
+    ]);
+    expect(stream.map((value) => value.version)).toEqual(
+      [...new Set(stream.map((value) => value.version))].sort((x, y) => x - y)
+    );
+  }
+  expect(leaked).toEqual([]);
+  other.close();
+  const reconnected = await connect(b.port, await ticket(peer, game.code));
+  const recovered = await reconnected
+    .timeout(2000)
+    .emitWithAck('SYNC_ROOM', {});
+  expect(recovered.state.phase).toBe('finished');
+  expect(recovered.state.lastResult).toMatchObject({
+    correctAnswer: 'A',
+    isFinal: true,
+  });
 });

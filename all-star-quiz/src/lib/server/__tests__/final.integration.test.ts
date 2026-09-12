@@ -100,7 +100,11 @@ const finishRound = async (gameId: string) => {
 it('persists one winner and distinct result/end events only after revealing the final question', async () => {
   const fixture = await setup(3);
   const { game, users } = fixture;
-  expect(await db.gameEventRecord.count()).toBe(0);
+  expect(
+    await db.gameEventRecord.count({
+      where: { type: { in: ['QUESTION_ENDED', 'GAME_ENDED'] } },
+    })
+  ).toBe(0);
   expect(
     await readGameProgress(game.code, users[0]!.userId)
   ).not.toHaveProperty('isFinal');
@@ -130,7 +134,7 @@ it('persists one winner and distinct result/end events only after revealing the 
     })
   ).toBe(0);
   const events = await db.gameEventRecord.findMany({
-    where: { gameId: game.id },
+    where: { gameId: game.id, type: { in: ['QUESTION_ENDED', 'GAME_ENDED'] } },
     orderBy: { version: 'asc' },
   });
   expect(events.map((event) => event.type)).toEqual([
@@ -150,9 +154,14 @@ it('persists one winner and distinct result/end events only after revealing the 
   expect(
     await db.gameResult.findUnique({ where: { gameId: game.id } })
   ).toEqual(result);
-  expect(await db.gameEventRecord.count({ where: { gameId: game.id } })).toBe(
-    2
-  );
+  expect(
+    await db.gameEventRecord.count({
+      where: {
+        gameId: game.id,
+        type: { in: ['QUESTION_ENDED', 'GAME_ENDED'] },
+      },
+    })
+  ).toBe(2);
 });
 it('ranks later elimination above earlier elimination and preserves equal ranks and survival counts', async () => {
   const fixture = await setup(5, true);
@@ -255,9 +264,10 @@ it('does not reveal an unfinished final answer or final flag when the host cance
   const events = await db.gameEventRecord.findMany({
     where: { gameId: game.id },
   });
-  expect(events.map((event) => event.type)).toEqual(['GAME_ENDED']);
-  expect(JSON.stringify(events[0]!.payload)).not.toContain('correctAnswer');
-  expect(JSON.stringify(events[0]!.payload)).not.toContain('isFinal');
+  expect(events.filter((event) => event.type === 'QUESTION_ENDED')).toEqual([]);
+  expect(events.filter((event) => event.type === 'GAME_ENDED')).toHaveLength(1);
+  expect(JSON.stringify(events)).not.toContain('correctAnswer');
+  expect(JSON.stringify(events)).not.toContain('isFinal');
   const result = await db.gameResult.findUniqueOrThrow({
     where: { gameId: game.id },
   });

@@ -147,6 +147,7 @@ export type QuestionResult = {
   winnerId?: string;
 };
 export type GameSnapshot = {
+  code: string;
   gameId: string;
   version: number;
   serverTime: number;

@@ -16,4 +16,4 @@
 
 `QUESTION_ENDED` に初めて正解・解説・isFinal・回答結果を保存します。最終問題の場合は、その次のversionに `GAME_ENDED` を保存します。1つのversionにイベントは1つです。未発表の最終フラグを開始・進行情報には含めません。
 
-これらのイベントはGameEventRecordに永続化されます。配信はIssue #15、鐘の再生はIssue #23で接続します。鐘は新しく受信したQUESTION_ENDEDのisFinalで1回だけ鳴らし、復帰時の状態取得では過去の鐘を鳴らしません。
+これらのイベントはGameEventRecordに永続化されます。配信と復帰時の状態取得は[リアルタイム通信](REALTIME.md)で接続済みです。鐘の再生はIssue #23で接続します。鐘は新しく受信したQUESTION_ENDEDのisFinalで1回だけ鳴らし、復帰時の状態取得では過去の鐘を鳴らしません。

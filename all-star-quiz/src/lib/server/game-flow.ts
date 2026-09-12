@@ -1,6 +1,9 @@
 import { persistGameResult } from './game-results';
 import { questionResultSchema } from '../result-schema';
-import { databaseTime, drainAnswers } from './answer-queue';
+import { drainAnswers } from './answer-queue';
+import { databaseTime } from './time';
+import { appendGameEvent, appendStateEvent } from './game-events';
+import { publicQuestion } from './game-state';
 import type { Game, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { questionSnapshotSchema } from '../question-schema';
@@ -167,6 +170,11 @@ export const runHostCommand = async (
           version: { increment: 1 },
         },
       });
+      await appendGameEvent(tx, updated, 'QUESTION_STARTED', {
+        question: publicQuestion(questions[index]!.snapshot),
+        startedAt: now,
+        deadlineAt: now + 10000,
+      });
     }
     await persistGameResult(tx, updated);
     const response = progressView(updated);
@@ -211,11 +219,16 @@ export const closeQuestionIfReady = async (
     (game.deadlineAt &&
       game.deadlineAt.getTime() <= (await databaseTime(tx)).getTime()) ||
     answered === living.length
-  )
-    return tx.game.update({
+  ) {
+    const closed = await tx.game.update({
       where: { id: game.id },
       data: { phase: 'closing', version: { increment: 1 } },
     });
+    await appendGameEvent(tx, closed, 'QUESTION_CLOSED', {
+      questionId: question?.questionId || '',
+    });
+    return closed;
+  }
   return game;
 };
 // Scoring (Issues #13/#14) persists its outcome in this transaction, then calls this transition.
@@ -301,17 +314,25 @@ export const leaveStartedGame = (gameId: string, userId: string) =>
         where: { id: remaining[0].id },
         data: { isHost: true },
       });
-    const updated = await tx.game.update({
+    const reason = !remaining.length
+      ? 'all_left'
+      : game.phase === 'results' && remaining.every((p) => p.isEliminated)
+        ? 'all_eliminated'
+        : null;
+    let updated = await tx.game.update({
       where: { id: gameId },
-      data: {
-        version: { increment: 1 },
-        ...(!remaining.length
-          ? { phase: 'finished', finishReason: 'all_left' }
-          : game.phase === 'results' && remaining.every((p) => p.isEliminated)
-            ? { phase: 'finished', finishReason: 'all_eliminated' }
-            : {}),
-      },
+      data: { version: { increment: 1 } },
     });
+    await appendStateEvent(tx, updated);
+    if (reason)
+      updated = await tx.game.update({
+        where: { id: gameId },
+        data: {
+          phase: 'finished',
+          finishReason: reason,
+          version: { increment: 1 },
+        },
+      });
     const closed = await closeQuestionIfReady(tx, updated);
     await persistGameResult(tx, closed);
     return progressView(closed);

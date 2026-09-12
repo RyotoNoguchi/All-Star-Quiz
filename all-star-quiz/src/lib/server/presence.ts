@@ -1,3 +1,4 @@
+import { appendStateEvent } from './game-events';
 import { scoreQuestion } from './scoring';
 import { db } from './db';
 import { withGame, closeQuestionIfReady } from './game-flow';
@@ -79,6 +80,7 @@ export const maintainGame = (gameId: string) =>
             where: { id: gameId },
             data: { version: { increment: 1 } },
           });
+          await appendStateEvent(tx, updated);
         }
       }
     }

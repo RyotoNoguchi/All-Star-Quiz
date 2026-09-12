@@ -15,7 +15,7 @@ Next.jsとは別プロセスでSocket.IOを起動します。`npm run build` は
 
 チケットは署名・Origin・有効期限を確認し、DBで現在のセッションと部屋への参加を検証します。Redisで1回だけ消費するため、別インスタンスへの再利用も拒否します。再接続時は新しいチケットを取得します。接続後は同期要求ごとと5秒ごとに認証を再確認し、セッション／部屋期限で切断します。短い切断で参加者を退出扱いにはしません。
 
-現在のクライアント操作は `SYNC_ROOM({}, ack)` です。成功時に `{ ok: true, state: RoomView, serverTime }`、不正入力は `{ ok: false, code: 'BAD_REQUEST' }` を返します。現在は待合室の同期が対象です。進行中の完全な状態同期はIssue #15、画面接続はIssue #16で拡張します。部屋や参加者のIDをクライアント操作で変更できません。未知のイベント、過大なパケット、毎秒20件を超えるイベントを拒否します。
+`SYNC_ROOM({}, ack)` は待機・出題・締切・結果・終了の全状態を `{ ok: true, state: PrivateGameSnapshot, serverTime }` で返します。HTTPの `games.snapshot({ code })` でも取得できます。本人の回答受付票だけを追加し、他人の回答、正解・解説・最終問題フラグは結果発表まで公開しません。不正入力は `{ ok: false, code: 'BAD_REQUEST' }` を返します。画面接続はIssue #16で実装します。部屋や参加者のIDをクライアント操作で変更できません。未知のイベント、過大なパケット、毎秒20件を超えるイベントを拒否します。
 
 信頼されたサーバー側 `notifyRoom(gameId)` が配信する `ROOM_UPDATED` はversionだけを含みます。Redis Adapterで複数インスタンスの同じ部屋に配信されます。クライアントから任意の部屋へ配信する機能はありません。Redis切断時はローカル接続を切り、復旧後の再認証・同期を要求します。Pub/Subは永続イベントログではないため、取り逃したイベントの復元にはDB状態を使います。
 
@@ -24,3 +24,13 @@ Next.jsとは別プロセスでSocket.IOを起動します。`npm run build` は
 結合テストは実際のWebSocketとRedisを使い、2台のサーバーへの同時接続、部屋分離、認証、チケット改ざん・期限・再利用、再接続、セッション失効・退出、不正操作を検証します。
 
 参考: [Socket.IO Redis Adapter](https://socket.io/docs/v4/redis-adapter/)、[接続ミドルウェア](https://socket.io/docs/v4/middlewares/)、[サーバー設定](https://socket.io/docs/v4/server-options/)。
+
+## ゲームイベントと復元
+
+`GAME_EVENT` は `gameId / eventId / version / serverTime / type / payload` を持ちます。部屋の作成・参加・退出・問題準備・ホスト移譲は `STATE_SYNC`、開始／次問は `QUESTION_STARTED`、受付数は `ANSWER_COUNT_UPDATED`、締切は `QUESTION_CLOSED`、正解と脱落発表は `QUESTION_ENDED`、終了は `GAME_ENDED` です。回答受付票は `SUBMIT_ANSWER` の本人へのackにのみ含みます。
+
+状態更新とイベント保存は同じDBトランザクションで行い、公開更新1回につきversionが1増えます。常駐サーバーは100msごとに未配信イベントを取得し、ゲーム単位のDBアドバイザリロックで複数配信者を直列化して、version順にRedisへ発行します。成功後に配信済みを記録します。失敗すると未配信のまま再試行します。発行後のクラッシュでは重複する可能性があるため、クライアントはversionで重複を除外します。
+
+各通信サーバーは専用Redisチャンネルを購読し、現在のセッションと参加を確認して、対象の部屋のローカル接続にだけ配信します。公開スキーマで不要なフィールドを除外してから発行します。`applyGameEvent` は過去・重複・別部屋のイベントを無視し、versionの欠落や問題ID不一致を検出したら再同期を要求します。遅れて届いたスナップショットで新しい状態に巻き戻りは生じません。最終問題のベル通知は新着の `QUESTION_ENDED` だけが返し、再同期では返しません。
+
+Pub/Subの購読者への到達は保証されないため、接続時・再接続時・version欠落時には必ず現在のスナップショットを取得します。保存イベントをクライアントが任意に検索するAPIはありません。

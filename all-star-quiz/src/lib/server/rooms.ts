@@ -1,3 +1,5 @@
+import { appendStateEvent } from './game-events';
+import { persistGameResult } from './game-results';
 import { randomBytes } from 'node:crypto';
 import { Prisma, type Game, type Participant } from '@prisma/client';
 import type { RoomView } from '@/types/room';
@@ -63,8 +65,8 @@ const withRoom = async <T>(
           404
         );
       if (game.expiresAt.getTime() <= Date.now()) {
-        if (game.phase !== 'finished')
-          await tx.game.update({
+        if (game.phase !== 'finished') {
+          const expired = await tx.game.update({
             where: { id: game.id },
             data: {
               phase: 'finished',
@@ -72,6 +74,8 @@ const withRoom = async <T>(
               version: { increment: 1 },
             },
           });
+          await persistGameResult(tx, expired);
+        }
         return new RoomError(
           'ルームの有効期限が切れました。新しいルームに参加してください。',
           404
@@ -116,6 +120,7 @@ export const createRoom = async (
           },
           include: includeParticipants,
         });
+        await appendStateEvent(tx, game);
         return view(game, game.participants[0]!.id);
       });
     } catch (error) {
@@ -151,10 +156,11 @@ export const joinRoom = async (code: string, name: unknown, userId: string) => {
     const player = await tx.participant.create({
       data: { gameId: game.id, userId, name: playerName },
     });
-    await tx.game.update({
+    const updated = await tx.game.update({
       where: { id: game.id },
       data: { version: { increment: 1 } },
     });
+    await appendStateEvent(tx, updated);
     return view(
       { ...game, participants: [...game.participants, player] },
       player.id
@@ -188,10 +194,11 @@ export const leaveRoom = (code: string, userId: string) =>
           where: { id: remaining[0]!.id },
           data: { isHost: true },
         });
-      await tx.game.update({
+      const updated = await tx.game.update({
         where: { id: game.id },
         data: { version: { increment: 1 } },
       });
+      await appendStateEvent(tx, updated);
     }
     return { ok: true };
   });

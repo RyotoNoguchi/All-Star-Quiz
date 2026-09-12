@@ -1,3 +1,5 @@
+import { databaseTime } from './time';
+import { appendGameEvent } from './game-events';
 import type { Game, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { questionSnapshotSchema } from '../question-schema';
@@ -18,12 +20,6 @@ export const receiptSchema = z.object({
   answeredAt: z.number(),
   responseTime: z.number().int().nonnegative(),
 });
-export const databaseTime = async (tx: Prisma.TransactionClient) => {
-  const rows = await tx.$queryRaw<
-    { now: Date }[]
-  >`SELECT date_trunc('milliseconds', clock_timestamp() AT TIME ZONE 'UTC') AS now`;
-  return rows[0]!.now;
-};
 // The short admission gate is distinct from the room's processing lock.
 // Admission never waits for a slow answer/game transaction while holding this gate.
 const admissionGate = async (tx: Prisma.TransactionClient, gameId: string) => {
@@ -92,7 +88,7 @@ export const drainAnswers = async (
       gameId_position: { gameId: game.id, position: game.currentQuestionIndex },
     },
   });
-  let accepted = 0;
+  let updated = game;
   for (const submission of pending) {
     const player = await tx.participant.findUnique({
       where: { gameId_userId: { gameId: game.id, userId: submission.userId } },
@@ -156,14 +152,19 @@ export const drainAnswers = async (
       where: { id: submission.id },
       data: { processedAt: new Date(), receipt },
     });
-    accepted++;
+    updated = await tx.game.update({
+      where: { id: game.id },
+      data: { version: { increment: 1 } },
+    });
+    const answerCount = await tx.answer.count({
+      where: { gameQuestionId: question!.id, participant: { leftAt: null } },
+    });
+    await appendGameEvent(tx, updated, 'ANSWER_COUNT_UPDATED', {
+      questionId: question!.questionId,
+      answerCount,
+    });
   }
-  return accepted
-    ? tx.game.update({
-        where: { id: game.id },
-        data: { version: { increment: accepted } },
-      })
-    : game;
+  return updated;
 };
 export const submissionError = (code: string) => {
   const reason = z
