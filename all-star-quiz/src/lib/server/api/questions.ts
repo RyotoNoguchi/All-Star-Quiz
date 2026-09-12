@@ -1,3 +1,4 @@
+import { questionFields } from '@/lib/question-schema';
 import { randomInt } from 'node:crypto';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
@@ -5,39 +6,6 @@ import { db } from '../db';
 import { adminProcedure } from './access';
 import { memberProcedure, service, trpc } from './trpc';
 
-const text = z.string().trim().min(1).max(200);
-const image = z
-  .object({
-    url: z
-      .url()
-      .max(2048)
-      .refine(
-        (url) => new URL(url).protocol === 'https:',
-        'HTTPS画像URLが必要です。'
-      ),
-    alt: text,
-  })
-  .strict();
-export const questionFields = z
-  .object({
-    question: z.string().trim().min(1).max(500),
-    choices: z.object({ A: text, B: text, C: text, D: text }).strict(),
-    choiceImages: z
-      .object({
-        A: image.optional(),
-        B: image.optional(),
-        C: image.optional(),
-        D: image.optional(),
-      })
-      .strict()
-      .default({}),
-    answer: z.enum(['A', 'B', 'C', 'D']),
-    type: z.enum(['normal', 'final']),
-    timeLimit: z.literal(10).default(10),
-    category: z.string().trim().min(1).max(50).nullable().default(null),
-    explanation: z.string().trim().max(2000).nullable().default(null),
-  })
-  .strict();
 const id = z.string().min(1).max(128);
 const category = z.string().trim().min(1).max(50).optional();
 const version = z.number().int().nonnegative();

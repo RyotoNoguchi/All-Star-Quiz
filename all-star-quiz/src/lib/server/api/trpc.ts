@@ -1,3 +1,4 @@
+import { GameFlowError } from '../game-error';
 import { initTRPC, TRPCError } from '@trpc/server';
 import { ZodError } from 'zod';
 import type { Context } from './context';
@@ -6,6 +7,17 @@ import { SessionError } from '../session';
 
 export const apiError = (error: unknown): TRPCError => {
   if (error instanceof TRPCError) return error;
+  if (error instanceof GameFlowError)
+    return new TRPCError({
+      code:
+        error.reason === 'FORBIDDEN'
+          ? 'FORBIDDEN'
+          : error.reason === 'GAME_NOT_FOUND'
+            ? 'NOT_FOUND'
+            : 'CONFLICT',
+      message: error.message,
+      cause: error,
+    });
   if (error instanceof SessionError)
     return new TRPCError({ code: 'UNAUTHORIZED', message: error.message });
   if (error instanceof RoomError) {
@@ -45,6 +57,7 @@ export const trpc = initTRPC.context<Context>().create({
           : shape.message,
     data: {
       code: shape.data.code,
+      reason: error.cause instanceof GameFlowError ? error.cause.reason : null,
       httpStatus: shape.data.httpStatus,
       path: shape.data.path,
       fieldErrors:

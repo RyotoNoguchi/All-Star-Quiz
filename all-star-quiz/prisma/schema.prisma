@@ -47,6 +47,7 @@ model Game {
   currentQuestionIndex Int            @default(-1)
   startedAt            DateTime?
   deadlineAt           DateTime?
+  commands             GameCommand[]
   participants         Participant[]
   questions            GameQuestion[]
   answers              Answer[]
@@ -65,6 +66,8 @@ model Participant {
   joinedOrder       Int       @default(autoincrement())
   game              Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
   user              User      @relation(fields: [userId], references: [id])
+  disconnectedAt    DateTime?
+  connections       RealtimeConnection[]
   answers           Answer[]
 
   @@unique([gameId, userId])
@@ -163,5 +166,26 @@ model AdminSession {
   expiresAt DateTime
   admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
 
+  @@index([expiresAt])
+}
+
+model GameCommand {
+  id String @id @default(uuid())
+  gameId String
+  requestId String
+  userId String
+  action String
+  expectedVersion Int
+  response Json
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  @@unique([gameId, requestId])
+}
+
+model RealtimeConnection {
+  id String @id
+  participantId String
+  expiresAt DateTime
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  @@index([participantId, expiresAt])
   @@index([expiresAt])
 }

@@ -94,3 +94,7 @@ Run `docker compose up -d` for both PostgreSQL and Redis. Configure `TEST_DATABA
 ## Persistent realtime server
 
 [常駐通信サーバー](docs/REALTIME.md) documents authenticated tickets, allowed origins, multi-instance delivery and startup. Set a real `REALTIME_TICKET_SECRET`, run `npm run build`, then `npm run realtime:start` alongside the web server. Browser integration follows in Issue #16.
+
+## Game progression
+
+[ゲーム進行API](docs/GAME_PROGRESS.md) covers host commands, persisted deadlines, idempotency, departures and host transfer. The realtime process runs deadline maintenance. Answer acceptance and scoring follow in Issues #12–#14; browser gameplay follows in Issues #16–#18.
