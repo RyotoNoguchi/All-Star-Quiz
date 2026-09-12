@@ -42,7 +42,7 @@ link, a participant list refreshed every two seconds, and leaving a room. The sa
 browser restores its membership on reload. When the host leaves, the next participant
 becomes host. Rooms allow 20 participants and expire 24 hours after creation.
 The existing single-question demo is available at `/demo`.
-Quiz progression and multiplayer answer/elimination processing are not implemented yet.
+Server APIs now implement progression, answer acceptance and normal-question elimination. The home page remains a waiting room until the planned browser gameplay integration.
 
 Use Node.js 22.22.0 (`.node-version`) and follow [the database setup guide](docs/DATABASE.md), then run `npm run dev`.
 For phones on the same network, open the server's Network URL shown at startup;
@@ -57,7 +57,7 @@ Validation: `npm run test:run`, `npm run type-check`, `npm run build`.
 
 ## Development backlog
 
-See [the GitHub implementation roadmap](https://github.com/RyotoNoguchi/All-Star-Quiz/issues/28) for all 27 remaining tasks, acceptance criteria, and dependencies. A local copy is in [docs/GITHUB_BACKLOG.md](docs/GITHUB_BACKLOG.md).
+See [the GitHub implementation roadmap](https://github.com/RyotoNoguchi/All-Star-Quiz/issues/28) for all 27 planned tasks and their completion status, acceptance criteria, and dependencies. A local copy is in [docs/GITHUB_BACKLOG.md](docs/GITHUB_BACKLOG.md).
 
 ## Game contract
 
@@ -102,3 +102,7 @@ Run `docker compose up -d` for both PostgreSQL and Redis. Configure `TEST_DATABA
 ## Answer acceptance
 
 [回答受付API](docs/ANSWERS.md) describes authenticated HTTP/Socket.IO submission, server timestamps, exclusive deadlines, durable admission and retry behavior.
+
+## Normal-question scoring
+
+[通常問題の判定](docs/SCORING.md) describes wrong/timeout/slowest elimination, ties, departures and immutable question results.

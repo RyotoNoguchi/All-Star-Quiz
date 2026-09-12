@@ -99,6 +99,8 @@ model GameQuestion {
   questionId String
   position   Int
   snapshot   Json
+  result     Json?
+  resolvedAt DateTime?
   game       Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
   question   Question @relation(fields: [questionId], references: [id])
   answers    Answer[]

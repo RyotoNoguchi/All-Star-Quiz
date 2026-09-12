@@ -60,7 +60,17 @@ export const enqueueAnswer = async (
       });
       if (!member)
         throw new GameFlowError('FORBIDDEN', 'このゲームに参加してください。');
-      return tx.answerSubmission.create({ data: { ...input, userId } });
+      const clock = await databaseTime(tx);
+      const latest = await tx.answerSubmission.aggregate({
+        where: { gameId: input.gameId },
+        _max: { receivedAt: true },
+      });
+      const receivedAt = new Date(
+        Math.max(clock.getTime(), latest._max.receivedAt?.getTime() ?? 0)
+      );
+      return tx.answerSubmission.create({
+        data: { ...input, userId, receivedAt },
+      });
     },
     { maxWait: 10000, timeout: 15000 }
   );
