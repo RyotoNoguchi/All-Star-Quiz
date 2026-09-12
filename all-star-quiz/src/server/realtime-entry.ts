@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { sweepGames } from '../lib/server/presence';
 import { startRealtimeServer } from './realtime';
 import { db } from '../lib/server/db';
 import { closeSharedStore } from '../lib/server/shared-state';
@@ -16,7 +17,21 @@ const main = async () => {
       .filter(Boolean),
   });
   console.log(`Realtime server listening on port ${server.port}`);
+  let sweeping: Promise<void> | undefined;
+  const tick = () => {
+    sweeping ??= sweepGames()
+      .catch(() => {
+        console.error('Game maintenance failed; retrying.');
+      })
+      .finally(() => {
+        sweeping = undefined;
+      });
+  };
+  tick();
+  const timer = setInterval(tick, 250);
   const stop = async () => {
+    clearInterval(timer);
+    await sweeping;
     await server.close();
     closeSharedStore();
     await db.$disconnect();

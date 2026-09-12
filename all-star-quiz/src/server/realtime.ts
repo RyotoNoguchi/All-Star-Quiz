@@ -1,3 +1,7 @@
+import {
+  heartbeatConnection,
+  disconnectConnection,
+} from '../lib/server/presence';
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
@@ -74,6 +78,12 @@ export const startRealtimeServer = async (options: {
     if (sub.isOpen) sub.destroy();
     throw error;
   }
+  const pending = new Set<Promise<unknown>>();
+  const track = (task: Promise<unknown>) => {
+    const handled = task.catch(() => undefined);
+    pending.add(handled);
+    void handled.then(() => pending.delete(handled));
+  };
   io.adapter(createAdapter(pub, sub, { key: `${prefix}:adapter` }));
   io.use(async (socket, next) => {
     try {
@@ -92,6 +102,11 @@ export const startRealtimeServer = async (options: {
           PXAT: verified.expiresAt,
         });
       if (accepted !== 'OK') throw new Error('UNAUTHORIZED');
+      await heartbeatConnection(
+        socket.id,
+        verified.identity.gameId,
+        verified.identity.playerId
+      );
       socket.data.identity = verified.identity;
       next();
     } catch {
@@ -107,11 +122,19 @@ export const startRealtimeServer = async (options: {
       Math.min(identity.expiresAt - Date.now(), 2147483647)
     );
     let checking = false;
+    let pendingHeartbeat: Promise<unknown> = Promise.resolve();
     const check = async () => {
       if (checking) return;
       checking = true;
       try {
         await currentRealtimeIdentity(identity.sessionHash, identity.gameId);
+        if (!socket.connected) return;
+        pendingHeartbeat = heartbeatConnection(
+          socket.id,
+          identity.gameId,
+          identity.playerId
+        );
+        await pendingHeartbeat;
       } catch {
         socket.disconnect(true);
       } finally {
@@ -124,6 +147,13 @@ export const startRealtimeServer = async (options: {
     socket.on('disconnect', () => {
       clearTimeout(expiry);
       clearInterval(guard);
+      track(
+        pendingHeartbeat
+          .catch(() => undefined)
+          .then(() =>
+            disconnectConnection(socket.id, identity.gameId, identity.playerId)
+          )
+      );
     });
     let windowStart = Date.now();
     let events = 0;
@@ -161,6 +191,7 @@ export const startRealtimeServer = async (options: {
   });
   const close = async () => {
     await new Promise<void>((resolve) => io.close(() => resolve()));
+    await Promise.all([...pending]);
     if (sub.isOpen) await sub.close();
     if (pub.isOpen) await pub.close();
   };
