@@ -261,3 +261,19 @@ it('records UTC admission time even when the database connection uses another ti
     answeredAt: queued.receivedAt.getTime(),
   });
 });
+
+it('never ranks a later admission earlier when the database clock moves backwards', async () => {
+  const { host, peer, input } = await setup();
+  const first = await enqueueAnswer(host.userId, input);
+  const ahead = new Date(first.receivedAt.getTime() + 1000);
+  await db.answerSubmission.update({
+    where: { id: first.id },
+    data: { receivedAt: ahead },
+  });
+  const second = await enqueueAnswer(peer.userId, {
+    ...input,
+    requestId: randomUUID(),
+  });
+  expect(second.receivedAt).toEqual(ahead);
+  expect(second.acceptanceSequence).toBeGreaterThan(first.acceptanceSequence);
+});
