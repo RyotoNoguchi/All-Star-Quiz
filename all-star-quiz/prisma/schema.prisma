@@ -47,6 +47,7 @@ model Game {
   currentQuestionIndex Int            @default(-1)
   startedAt            DateTime?
   deadlineAt           DateTime?
+  submissions          AnswerSubmission[]
   commands             GameCommand[]
   participants         Participant[]
   questions            GameQuestion[]
@@ -188,4 +189,21 @@ model RealtimeConnection {
   participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
   @@index([participantId, expiresAt])
   @@index([expiresAt])
+}
+
+model AnswerSubmission {
+  id String @id @default(uuid())
+  gameId String
+  userId String
+  questionId String
+  requestId String
+  choice Choice
+  receivedAt DateTime @default(dbgenerated("date_trunc('milliseconds', clock_timestamp() AT TIME ZONE 'UTC')"))
+  acceptanceSequence Int @default(autoincrement())
+  processedAt DateTime?
+  errorCode String?
+  receipt Json?
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  @@unique([gameId, userId, questionId, requestId])
+  @@index([gameId, processedAt, acceptanceSequence])
 }

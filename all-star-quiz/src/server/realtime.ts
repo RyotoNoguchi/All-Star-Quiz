@@ -1,3 +1,6 @@
+import { answerInputSchema } from '../lib/server/answer-queue';
+import { submitAnswer } from '../lib/server/answers';
+import { GameFlowError } from '../lib/server/game-error';
 import {
   heartbeatConnection,
   disconnectConnection,
@@ -167,10 +170,38 @@ export const startRealtimeServer = async (options: {
         socket.disconnect(true);
         return;
       }
-      if (event !== 'SYNC_ROOM') {
+      if (event !== 'SYNC_ROOM' && event !== 'SUBMIT_ANSWER') {
         const ack = args[args.length - 1];
         if (typeof ack === 'function') ack({ ok: false, code: 'BAD_REQUEST' });
         else socket.emit('PROTOCOL_ERROR', { code: 'BAD_REQUEST' });
+      }
+    });
+    socket.on('SUBMIT_ANSWER', async (payload: unknown, ack: unknown) => {
+      if (typeof ack !== 'function' || !socket.connected) return;
+      const parsed = answerInputSchema
+        .omit({ gameId: true })
+        .safeParse(payload);
+      if (!parsed.success) {
+        ack({ ok: false, code: 'BAD_REQUEST' });
+        return;
+      }
+      try {
+        await currentRealtimeIdentity(identity.sessionHash, identity.gameId);
+        const receipt = await submitAnswer(identity.userId, {
+          ...parsed.data,
+          gameId: identity.gameId,
+        });
+        ack({ ok: true, receipt });
+      } catch (error) {
+        ack({
+          ok: false,
+          code:
+            error instanceof GameFlowError
+              ? error.reason
+              : error instanceof Error && error.message === 'UNAUTHORIZED'
+                ? 'UNAUTHORIZED'
+                : 'UNAVAILABLE',
+        });
       }
     });
     socket.on('SYNC_ROOM', async (payload: unknown, ack: unknown) => {

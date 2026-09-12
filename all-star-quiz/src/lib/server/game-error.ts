@@ -6,7 +6,10 @@ export class GameFlowError extends Error {
       | 'INVALID_PHASE'
       | 'STALE_VERSION'
       | 'REQUEST_CONFLICT'
-      | 'INVALID_SETUP',
+      | 'INVALID_SETUP'
+      | 'PLAYER_ELIMINATED'
+      | 'ANSWER_CLOSED'
+      | 'ALREADY_ANSWERED',
     message: string
   ) {
     super(message);

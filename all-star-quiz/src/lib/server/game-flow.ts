@@ -1,3 +1,4 @@
+import { databaseTime, drainAnswers } from './answer-queue';
 import type { Game, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { questionSnapshotSchema } from '../question-schema';
@@ -36,7 +37,7 @@ export const withGame = async <T>(
 ): Promise<T> => {
   const result = await db.$transaction(
     async (tx) => {
-      await tx.$queryRaw`SELECT id FROM "Game" WHERE id = ${gameId} FOR UPDATE`;
+      await tx.$queryRaw`SELECT id FROM "Game" WHERE id = ${gameId} FOR NO KEY UPDATE`;
       const game = await tx.game.findUnique({ where: { id: gameId } });
       if (!game)
         return new GameFlowError('GAME_NOT_FOUND', 'ゲームが見つかりません。');
@@ -148,7 +149,7 @@ export const runHostCommand = async (
           where: { gameId: game.id, leftAt: null },
           data: { isEliminated: false, eliminationReason: null },
         });
-      const now = Date.now();
+      const now = (await databaseTime(tx)).getTime();
       updated = await tx.game.update({
         where: { id: game.id },
         data: {
@@ -177,8 +178,9 @@ export const readGameProgress = async (code: string, userId: string) => {
 // Called inside the same room transaction as answer acceptance or departure.
 export const closeQuestionIfReady = async (
   tx: Prisma.TransactionClient,
-  game: Game
+  initialGame: Game
 ) => {
+  const game = await drainAnswers(tx, initialGame);
   if (game.phase !== 'playing') return game;
   const living = await tx.participant.findMany({
     where: { gameId: game.id, leftAt: null, isEliminated: false },
@@ -198,7 +200,8 @@ export const closeQuestionIfReady = async (
       })
     : 0;
   if (
-    (game.deadlineAt && game.deadlineAt.getTime() <= Date.now()) ||
+    (game.deadlineAt &&
+      game.deadlineAt.getTime() <= (await databaseTime(tx)).getTime()) ||
     answered === living.length
   )
     return tx.game.update({

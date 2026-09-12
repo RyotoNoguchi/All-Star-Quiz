@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { runHostCommand } from '../game-flow';
 import { io, type Socket } from 'socket.io-client';
 import { NextRequest } from 'next/server';
 import { startRealtimeServer } from '../../../server/realtime';
@@ -205,4 +207,70 @@ it('cleans up Redis connections when the listening port is already occupied', as
       prefix: `${process.env.QUIZ_REDIS_PREFIX}:occupied`,
     })
   ).rejects.toMatchObject({ code: 'EADDRINUSE' });
+});
+
+it('binds socket answers to the authenticated room and returns the receipt only to its sender', async () => {
+  const guest = await createGuestSession();
+  const room = await createRoom('回答ホスト', guest.userId);
+  const peer = await createGuestSession();
+  await joinRoom(room.room.code, '回答参加者', peer.userId);
+  const game = await db.game.findUniqueOrThrow({
+    where: { code: room.room.code },
+  });
+  const fields = {
+    question: '問題',
+    choices: { A: '一', B: '二', C: '三', D: '四' },
+    answer: 'A' as const,
+    type: 'final' as const,
+    timeLimit: 10,
+    choiceImages: {},
+    category: null,
+    explanation: null,
+  };
+  const question = await db.question.create({ data: fields });
+  await db.gameQuestion.create({
+    data: {
+      gameId: game.id,
+      questionId: question.id,
+      position: 0,
+      snapshot: { ...fields, id: question.id, version: 0 },
+    },
+  });
+  await runHostCommand(guest.userId, {
+    gameId: game.id,
+    requestId: randomUUID(),
+    expectedVersion: game.version,
+    action: 'start',
+  });
+  const socket = await connect(a.port, await ticket(guest, game.code));
+  const other = await connect(b.port, await ticket(peer, game.code));
+  const observed: string[] = [];
+  other.onAny((name) => observed.push(name));
+  const payload = {
+    questionId: question.id,
+    requestId: randomUUID(),
+    choice: 'A',
+  };
+  expect(
+    await socket
+      .timeout(2000)
+      .emitWithAck('SUBMIT_ANSWER', { ...payload, gameId: randomUUID() })
+  ).toEqual({ ok: false, code: 'BAD_REQUEST' });
+  const response = await socket
+    .timeout(2000)
+    .emitWithAck('SUBMIT_ANSWER', payload);
+  expect(response).toMatchObject({
+    ok: true,
+    receipt: { requestId: payload.requestId, choice: 'A' },
+  });
+  expect(response.receipt).not.toHaveProperty('isCorrect');
+  expect(
+    await socket.timeout(2000).emitWithAck('SUBMIT_ANSWER', payload)
+  ).toEqual(response);
+  expect(
+    await socket
+      .timeout(2000)
+      .emitWithAck('SUBMIT_ANSWER', { ...payload, choice: 'B' })
+  ).toEqual({ ok: false, code: 'REQUEST_CONFLICT' });
+  expect(observed).toEqual([]);
 });
