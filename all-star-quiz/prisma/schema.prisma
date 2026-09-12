@@ -47,6 +47,7 @@ model Game {
   currentQuestionIndex Int            @default(-1)
   startedAt            DateTime?
   deadlineAt           DateTime?
+  events               GameEventRecord[]
   submissions          AnswerSubmission[]
   commands             GameCommand[]
   participants         Participant[]
@@ -63,6 +64,7 @@ model Participant {
   isHost            Boolean   @default(false)
   isEliminated      Boolean   @default(false)
   eliminationReason String?
+  eliminatedAtQuestion Int?
   leftAt            DateTime?
   joinedOrder       Int       @default(autoincrement())
   game              Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
@@ -130,6 +132,7 @@ model Answer {
 }
 
 model GameResult {
+  totalQuestions Int @default(0)
   id          String   @id @default(uuid())
   gameId      String   @unique
   reason      String
@@ -208,4 +211,17 @@ model AnswerSubmission {
   game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
   @@unique([gameId, userId, questionId, requestId])
   @@index([gameId, processedAt, acceptanceSequence])
+}
+
+model GameEventRecord {
+  id String @id @default(uuid())
+  gameId String
+  version Int
+  type String
+  payload Json
+  createdAt DateTime @default(now())
+  publishedAt DateTime?
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  @@unique([gameId, version])
+  @@index([publishedAt, createdAt])
 }

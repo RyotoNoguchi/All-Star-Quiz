@@ -37,3 +37,26 @@ export const normalEliminations = (
   }
   return eliminated;
 };
+
+export const finalOutcome = (
+  players: ScoringPlayer[],
+  answers: ScoringAnswer[]
+) => {
+  const living = players.filter((p) => !p.isEliminated && !p.hasLeft);
+  const byPlayer = new Map(answers.map((a) => [a.playerId, a]));
+  const eliminated: { playerId: string; reason: EliminationReason }[] = [];
+  const correct: ScoringAnswer[] = [];
+  for (const player of living) {
+    const answer = byPlayer.get(player.id);
+    if (!answer) eliminated.push({ playerId: player.id, reason: 'timeout' });
+    else if (!answer.isCorrect)
+      eliminated.push({ playerId: player.id, reason: 'wrong' });
+    else correct.push(answer);
+  }
+  const winner = [...correct].sort(
+    (a, b) =>
+      a.responseTime - b.responseTime ||
+      a.acceptanceSequence - b.acceptanceSequence
+  )[0];
+  return { eliminated, winnerId: winner?.playerId };
+};

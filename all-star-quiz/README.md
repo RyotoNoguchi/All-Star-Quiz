@@ -42,7 +42,7 @@ link, a participant list refreshed every two seconds, and leaving a room. The sa
 browser restores its membership on reload. When the host leaves, the next participant
 becomes host. Rooms allow 20 participants and expire 24 hours after creation.
 The existing single-question demo is available at `/demo`.
-Server APIs now implement progression, answer acceptance and normal-question elimination. The home page remains a waiting room until the planned browser gameplay integration.
+Server APIs now implement progression, answer acceptance and normal/final question scoring. The home page remains a waiting room until the planned browser gameplay integration.
 
 Use Node.js 22.22.0 (`.node-version`) and follow [the database setup guide](docs/DATABASE.md), then run `npm run dev`.
 For phones on the same network, open the server's Network URL shown at startup;
@@ -106,3 +106,7 @@ Run `docker compose up -d` for both PostgreSQL and Redis. Configure `TEST_DATABA
 ## Normal-question scoring
 
 [通常問題の判定](docs/SCORING.md) describes wrong/timeout/slowest elimination, ties, departures and immutable question results.
+
+## Final results
+
+[最終問題と確定結果](docs/FINAL_RESULTS.md) covers winner selection, tied rankings, persisted statistics and the final-reveal event.
