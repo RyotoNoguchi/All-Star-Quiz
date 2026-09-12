@@ -278,7 +278,9 @@ export const leaveStartedGame = (gameId: string, userId: string) =>
         version: { increment: 1 },
         ...(!remaining.length
           ? { phase: 'finished', finishReason: 'all_left' }
-          : {}),
+          : game.phase === 'results' && remaining.every((p) => p.isEliminated)
+            ? { phase: 'finished', finishReason: 'all_eliminated' }
+            : {}),
       },
     });
     return progressView(await closeQuestionIfReady(tx, updated));

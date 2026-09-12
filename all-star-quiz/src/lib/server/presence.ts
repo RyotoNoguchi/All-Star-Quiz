@@ -1,3 +1,4 @@
+import { scoreNormalQuestion } from './scoring';
 import { db } from './db';
 import { withGame, closeQuestionIfReady } from './game-flow';
 import { GameFlowError } from './game-error';
@@ -81,7 +82,7 @@ export const maintainGame = (gameId: string) =>
         }
       }
     }
-    return closeQuestionIfReady(tx, updated);
+    return scoreNormalQuestion(tx, await closeQuestionIfReady(tx, updated));
   });
 export const sweepGames = async () => {
   const games = await db.game.findMany({

@@ -123,8 +123,8 @@ it('closes exactly once at the persisted deadline and advances results to the fi
     data: { deadlineAt: new Date(0) },
   });
   const [one, two] = await Promise.all([
-    maintainGame(game.id),
-    maintainGame(game.id),
+    withGame(game.id, closeQuestionIfReady),
+    withGame(game.id, closeQuestionIfReady),
   ]);
   expect(one.phase).toBe('closing');
   expect(two.version).toBe(one.version);
@@ -258,21 +258,26 @@ it('keeps host ownership while another tab is connected and transfers after the 
   ).toMatchObject({ isHost: false, isEliminated: false });
 });
 it('recovers missed deadlines and crashed connections, defers host transfer without a candidate, and expires rooms', async () => {
-  const { host, game } = await setup();
-  await runHostCommand(host.userId, command(game.id, game.version));
+  const active = await setup();
+  await runHostCommand(
+    active.host.userId,
+    command(active.game.id, active.game.version)
+  );
+  await db.game.update({
+    where: { id: active.game.id },
+    data: { deadlineAt: new Date(0) },
+  });
+  await sweepGames();
+  expect(
+    await db.game.findUnique({ where: { id: active.game.id } })
+  ).toMatchObject({ phase: 'finished', finishReason: 'all_eliminated' });
+  const { game } = await setup();
   await heartbeatConnection('crashed', game.id, game.participants[0]!.id);
   await db.realtimeConnection.update({
     where: { id: 'crashed' },
     data: { expiresAt: new Date(0) },
   });
-  await db.game.update({
-    where: { id: game.id },
-    data: { deadlineAt: new Date(0) },
-  });
   await sweepGames();
-  expect(await db.game.findUnique({ where: { id: game.id } })).toMatchObject({
-    phase: 'closing',
-  });
   await db.participant.update({
     where: { id: game.participants[0]!.id },
     data: { disconnectedAt: new Date(0) },
@@ -308,7 +313,7 @@ it('serializes different host requests and keeps cancellation terminal', async (
     where: { id: game.id },
     data: { deadlineAt: new Date(0) },
   });
-  const closing = await maintainGame(game.id);
+  const closing = await withGame(game.id, closeQuestionIfReady);
   await runHostCommand(
     host.userId,
     command(game.id, closing.version, 'cancel')
