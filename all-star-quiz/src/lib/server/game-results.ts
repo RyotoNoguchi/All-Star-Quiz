@@ -1,7 +1,7 @@
 import type { Game, Prisma } from '@prisma/client';
 import type { GameResult } from '@/types/game';
 import { finishReasonSchema, questionResultSchema } from '../result-schema';
-import { databaseTime } from './answer-queue';
+import { databaseTime } from './time';
 
 export const persistGameResult = async (
   tx: Prisma.TransactionClient,

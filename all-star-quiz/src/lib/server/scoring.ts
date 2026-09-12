@@ -1,25 +1,11 @@
-import type { Game, Participant, Prisma } from '@prisma/client';
-import { z } from 'zod';
-import type { PublicPlayer, QuestionResult } from '@/types/game';
+import { publicParticipant } from './public-data';
+import type { Game, Prisma } from '@prisma/client';
+import type { QuestionResult } from '@/types/game';
 import { normalEliminations, finalOutcome } from '../scoring';
 import { questionSnapshotSchema } from '../question-schema';
 import { completeQuestion } from './game-flow';
-import { databaseTime } from './answer-queue';
+import { databaseTime } from './time';
 
-export const publicParticipant = (player: Participant): PublicPlayer => ({
-  id: player.id,
-  name: player.name,
-  isHost: player.isHost,
-  isEliminated: player.isEliminated,
-  ...(player.eliminationReason
-    ? {
-        eliminationReason: z
-          .enum(['wrong', 'timeout', 'slowest', 'left'])
-          .parse(player.eliminationReason),
-      }
-    : {}),
-  ...(player.leftAt ? { leftAt: player.leftAt.getTime() } : {}),
-});
 export const scoreQuestion = async (
   tx: Prisma.TransactionClient,
   game: Game

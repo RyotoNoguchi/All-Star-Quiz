@@ -1,3 +1,4 @@
+import { appendStateEvent } from '../game-events';
 import { questionFields } from '@/lib/question-schema';
 import { randomInt } from 'node:crypto';
 import { TRPCError } from '@trpc/server';
@@ -181,6 +182,7 @@ export const questionsRouter = trpc.router({
             where: { id: game.id },
             data: { version: { increment: 1 } },
           });
+          await appendStateEvent(tx, updated);
           return { count: selected.length, version: updated.version };
         })
       )

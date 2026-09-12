@@ -16,7 +16,9 @@ import {
   verifyRealtimeTicket,
   type RealtimeIdentity,
 } from '../lib/server/realtime-auth';
-import { readRoom } from '../lib/server/rooms';
+import { readPrivateSnapshot } from '../lib/server/game-state';
+import { dispatchGameEvents } from '../lib/server/event-dispatch';
+import { parseGameEvent } from '../lib/realtime-schema';
 import { db } from '../lib/server/db';
 
 export const startRealtimeServer = async (options: {
@@ -88,6 +90,60 @@ export const startRealtimeServer = async (options: {
     void handled.then(() => pending.delete(handled));
   };
   io.adapter(createAdapter(pub, sub, { key: `${prefix}:adapter` }));
+  const deliveries = new Map<string, Promise<void>>();
+  await sub.subscribe(`${prefix}:events`, (message) => {
+    try {
+      const event = parseGameEvent(JSON.parse(message));
+      const delivery = (deliveries.get(event.gameId) || Promise.resolve())
+        .then(async () => {
+          const ids = io.of('/').adapter.rooms.get(`game:${event.gameId}`);
+          await Promise.all(
+            [...(ids || [])].map(async (id) => {
+              const socket = io.of('/').sockets.get(id);
+              if (!socket) return;
+              const identity = socket.data.identity as RealtimeIdentity;
+              try {
+                await currentRealtimeIdentity(
+                  identity.sessionHash,
+                  identity.gameId
+                );
+                if (socket.connected) socket.emit('GAME_EVENT', event);
+              } catch {
+                socket.disconnect(true);
+              }
+            })
+          );
+        })
+        .catch(() => undefined);
+      deliveries.set(event.gameId, delivery);
+      void delivery.then(() => {
+        if (deliveries.get(event.gameId) === delivery)
+          deliveries.delete(event.gameId);
+      });
+    } catch {
+      /* Invalid messages are never forwarded. */
+    }
+  });
+  let dispatching: Promise<void> | undefined;
+  const flushEvents = () => {
+    if (!dispatching) {
+      dispatching = dispatchGameEvents((event) => {
+        if (!pub.isReady || !sub.isReady)
+          throw new Error('REALTIME_UNAVAILABLE');
+        return pub
+          .withCommandOptions({ timeout: 1000 })
+          .publish(`${prefix}:events`, JSON.stringify(event));
+      }).finally(() => {
+        dispatching = undefined;
+      });
+    }
+    return dispatching;
+  };
+  const dispatcher = setInterval(() => {
+    void flushEvents().catch(() =>
+      console.error('Game event delivery failed; retrying')
+    );
+  }, 100);
   io.use(async (socket, next) => {
     try {
       const auth = z
@@ -212,7 +268,7 @@ export const startRealtimeServer = async (options: {
       }
       try {
         await currentRealtimeIdentity(identity.sessionHash, identity.gameId);
-        const state = await readRoom(identity.code, identity.userId);
+        const state = await readPrivateSnapshot(identity.code, identity.userId);
         ack({ ok: true, state, serverTime: Date.now() });
       } catch {
         ack({ ok: false, code: 'UNAUTHORIZED' });
@@ -221,7 +277,10 @@ export const startRealtimeServer = async (options: {
     });
   });
   const close = async () => {
+    clearInterval(dispatcher);
+    await dispatching?.catch(() => undefined);
     await new Promise<void>((resolve) => io.close(() => resolve()));
+    await Promise.all([...deliveries.values()]);
     await Promise.all([...pending]);
     if (sub.isOpen) await sub.close();
     if (pub.isOpen) await pub.close();
@@ -240,6 +299,7 @@ export const startRealtimeServer = async (options: {
     throw new Error('No server address');
   return {
     port: address.port,
+    flushEvents,
     // Trusted server API only; clients cannot select a broadcast room or payload.
     notifyRoom: async (gameId: string) => {
       if (!pub.isReady || !sub.isReady) throw new Error('REALTIME_UNAVAILABLE');

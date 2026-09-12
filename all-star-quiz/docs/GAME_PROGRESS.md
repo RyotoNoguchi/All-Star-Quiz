@@ -1,6 +1,6 @@
 # ゲーム進行
 
-`games.status({ code })` は参加者に進行情報（gameId、phase、version、問題番号、開始・締切時刻）だけを返します。問題や正解の配信はIssue #15の公開状態に統合します。
+`games.status({ code })` は参加者に進行情報（gameId、phase、version、問題番号、開始・締切時刻）だけを返します。`games.snapshot({ code })` とSocket.IOの `SYNC_ROOM` は本人用の現在状態を返し、公開イベントは `GAME_EVENT` で配信します。正解は結果発表後だけ含まれます。
 
 ホストは `games.command({ gameId, requestId, expectedVersion, action })` を送ります。requestIdはUUID、actionはstart/next/cancelです。部屋の行ロック内で認可・期待version・状態を検証し、同じ操作の再送には保存した結果を返します。同じrequestIdで異なる操作はREQUEST_CONFLICT、古いversionはSTALE_VERSIONです。
 

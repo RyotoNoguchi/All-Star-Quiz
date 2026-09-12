@@ -1,3 +1,5 @@
+import { privateSnapshotSchema } from '@/lib/realtime-schema';
+import { readPrivateSnapshot } from '../game-state';
 import { z } from 'zod';
 import {
   commandSchema,
@@ -8,6 +10,22 @@ import {
 } from '../game-flow';
 import { memberProcedure, service, trpc } from './trpc';
 export const gamesRouter = trpc.router({
+  snapshot: memberProcedure
+    .input(
+      z
+        .object({
+          code: z
+            .string()
+            .trim()
+            .toUpperCase()
+            .regex(/^[A-F0-9]{6}$/),
+        })
+        .strict()
+    )
+    .output(privateSnapshotSchema)
+    .query(({ ctx, input }) =>
+      service(() => readPrivateSnapshot(input.code, ctx.identity.userId))
+    ),
   status: memberProcedure
     .input(
       z
