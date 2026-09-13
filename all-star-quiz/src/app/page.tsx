@@ -1,19 +1,29 @@
 'use client';
 
-import { useEffect, useState, type FC, type FormEvent } from 'react';
+import { useEffect, useState, useRef, type FC, type FormEvent } from 'react';
 import Link from 'next/link';
-import { api, apiErrorStatus } from '@/lib/api-client';
+import { api } from '@/lib/api-client';
 import { GameLayout } from '@/components/layout/GameLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import type { RoomView } from '@/types/room';
+import {
+  useGameConnection,
+  announceRoomDeparture,
+} from '@/hooks/use-game-connection';
 
 const Home: FC = () => {
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [activeCode, setActiveCode] = useState('');
-  const [view, setView] = useState<RoomView | null>(null);
+  const { state: view, status, message, retry } = useGameConnection(activeCode);
+  const operation = useRef(0);
+  useEffect(
+    () => () => {
+      operation.current++;
+    },
+    []
+  );
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -22,77 +32,54 @@ const Home: FC = () => {
     const initial =
       new URLSearchParams(window.location.search).get('room') || '';
     setCode(initial.toUpperCase());
-    setActiveCode(initial.toUpperCase());
+    if (/^[A-Fa-f0-9]{6}$/.test(initial)) setActiveCode(initial.toUpperCase());
   }, []);
 
   useEffect(() => {
-    if (!activeCode) return;
-    const controller = new AbortController();
-    let timer: ReturnType<typeof setTimeout>;
-    const refresh = async () => {
-      try {
-        const data = await api.rooms.get.query(
-          { code: activeCode },
-          { signal: controller.signal }
-        );
-        if (controller.signal.aborted) return;
-        setView(data);
-        setError('');
-      } catch (cause) {
-        if (controller.signal.aborted) return;
-        const status = apiErrorStatus(cause);
-        if (status === 401 || status === 403 || status === 404) {
-          setView(null);
-          setActiveCode('');
-          if (status !== 403)
-            setError(
-              cause instanceof Error ? cause.message : '参加し直してください。'
-            );
-          return;
-        }
-        setError(
-          cause instanceof Error ? cause.message : '接続を再試行しています。'
-        );
-      }
-      if (!controller.signal.aborted)
-        timer = setTimeout(() => void refresh(), 2000);
-    };
-    void refresh();
-    return () => {
-      controller.abort();
-      clearTimeout(timer);
-    };
-  }, [activeCode]);
+    if (status !== 'denied') return;
+    setActiveCode('');
+    setError(message);
+    window.history.replaceState(null, '', '/');
+  }, [status, message]);
 
   const submit = async (action: 'create' | 'join' | 'leave') => {
+    const current = ++operation.current;
     setBusy(true);
     setError('');
     setNotice('');
     try {
-      const roomCode = view?.room.code || code;
+      const roomCode = view?.code || code;
+      if (action === 'leave' && view?.phase === 'finished') {
+        setActiveCode('');
+        window.history.replaceState(null, '', '/');
+        return;
+      }
       const data =
         action === 'create'
           ? await api.rooms.create.mutate({ name })
           : action === 'join'
             ? await api.rooms.join.mutate({ name, code: roomCode })
-            : await api.rooms.leave.mutate({ code: roomCode });
+            : view && view.phase !== 'waiting'
+              ? await api.games.leave.mutate({ gameId: view.gameId })
+              : await api.rooms.leave.mutate({ code: roomCode });
+      if (current !== operation.current) return;
       if (action === 'leave') {
         setActiveCode('');
-        setView(null);
+        announceRoomDeparture(roomCode);
         window.history.replaceState(null, '', '/');
       } else if ('room' in data) {
-        setView(data);
         setActiveCode(data.room.code);
         window.history.replaceState(null, '', `/?room=${data.room.code}`);
       }
     } catch (cause) {
+      if (current !== operation.current) return;
       setError(
         cause instanceof Error
           ? cause.message
           : '接続できませんでした。もう一度お試しください。'
       );
     } finally {
-      setBusy(false);
+      if (current === operation.current) setBusy(false);
     }
   };
 
@@ -108,14 +95,34 @@ const Home: FC = () => {
             {error}
           </p>
         )}
+        {activeCode && (
+          <div role="status" className="rounded-lg bg-white/10 p-3 text-sm">
+            {status === 'connected'
+              ? '接続済み・最新の状態です'
+              : message || '接続しています…'}
+            {status === 'failed' && (
+              <Button className="ml-3" onClick={retry}>
+                再接続する
+              </Button>
+            )}
+          </div>
+        )}
         {view ? (
           <>
             <div className="text-center space-y-3">
-              <p className="text-white/70">参加者を募集中</p>
-              <h2 className="text-2xl font-bold">クイズの待合室</h2>
+              <p className="text-white/70">
+                {view.phase === 'waiting'
+                  ? '参加者を募集中'
+                  : view.phase === 'finished'
+                    ? 'ゲームが終了しました'
+                    : 'ゲーム進行中'}
+              </p>
+              <h2 className="text-2xl font-bold">
+                {view.phase === 'waiting' ? 'クイズの待合室' : 'クイズルーム'}
+              </h2>
               <p>ルームコード</p>
               <p className="text-4xl font-mono tracking-widest font-bold">
-                {view.room.code}
+                {view.code}
               </p>
               <Button
                 onClick={async () => {
@@ -136,33 +143,36 @@ const Home: FC = () => {
               </p>
             </div>
             <h3 className="font-bold">
-              参加者 {view.room.players.length} / 20人
+              参加者 {view.players.filter((player) => !player.leftAt).length} /
+              20人
             </h3>
             <ul className="space-y-2" aria-label="参加者一覧">
-              {view.room.players.map((player) => (
-                <li
-                  key={player.id}
-                  className="flex justify-between rounded-lg bg-white/10 p-4"
-                >
-                  <span>
-                    {player.name}
-                    {player.id === view.playerId ? '（あなた）' : ''}
-                  </span>
-                  {player.isHost && (
-                    <span className="text-yellow-300">ホスト</span>
-                  )}
-                </li>
-              ))}
+              {view.players
+                .filter((player) => !player.leftAt)
+                .map((player) => (
+                  <li
+                    key={player.id}
+                    className="flex justify-between rounded-lg bg-white/10 p-4"
+                  >
+                    <span>
+                      {player.name}
+                      {player.id === view.playerId ? '（あなた）' : ''}
+                    </span>
+                    {player.isHost && (
+                      <span className="text-yellow-300">ホスト</span>
+                    )}
+                  </li>
+                ))}
             </ul>
             <p className="text-sm text-white/70">
-              参加者一覧は自動で更新されます。現在は参加受付まで利用できます。対戦・出題機能は準備中です。
+              参加者一覧とホストは自動で更新されます。出題・回答画面は準備中です。
             </p>
             <Button
               disabled={busy}
               onClick={() => void submit('leave')}
               variant="destructive"
             >
-              ルームから退出
+              {view.phase === 'finished' ? '参加画面に戻る' : 'ルームから退出'}
             </Button>
           </>
         ) : (

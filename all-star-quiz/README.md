@@ -111,4 +111,4 @@ Run `docker compose up -d` for both PostgreSQL and Redis. Configure `TEST_DATABA
 
 [最終問題と確定結果](docs/FINAL_RESULTS.md) covers winner selection, tied rankings, persisted statistics and the final-reveal event.
 
-ゲームイベント配信・全フェーズの状態同期は実装済みです。公開情報と本人の回答を分離し、イベント欠落時は最新状態から復元します。通信仕様は[REALTIME.md](docs/REALTIME.md)を参照してください。ホーム画面への対戦接続はIssue #16で実装します。
+ゲームイベント配信・全フェーズの状態同期は実装済みです。公開情報と本人の回答を分離し、イベント欠落時は最新状態から復元します。通信仕様は[REALTIME.md](docs/REALTIME.md)を参照してください。ホーム画面の待合室はイベント同期に接続済みです。通信断の再接続、最新状態の復元、複数タブの退出通知に対応しています。出題・回答画面はIssue #17以降で実装します。
