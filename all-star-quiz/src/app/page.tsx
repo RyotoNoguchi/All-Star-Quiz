@@ -3,6 +3,8 @@
 import { useEffect, useState, useRef, type FC, type FormEvent } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
+import { PlayerResult } from '@/components/game/PlayerResult';
+import { PlayerFinalResult } from '@/components/game/PlayerFinalResult';
 import { PlayerQuestion } from '@/components/game/PlayerQuestion';
 import { GameLayout } from '@/components/layout/GameLayout';
 import { Button } from '@/components/ui/button';
@@ -124,15 +126,17 @@ const Home: FC = () => {
                 connected={status === 'connected'}
                 clock={clock}
               />
+            ) : view.phase === 'finished' ? (
+              <PlayerFinalResult state={view} />
+            ) : view.phase === 'results' && view.lastResult ? (
+              <PlayerResult state={view} />
             ) : (
               <>
                 <div className="text-center space-y-3">
                   <p className="text-white/70">
                     {view.phase === 'waiting'
                       ? '参加者を募集中'
-                      : view.phase === 'finished'
-                        ? 'ゲームが終了しました'
-                        : 'ゲーム進行中'}
+                      : 'ゲーム進行中'}
                   </p>
                   <h2 className="text-2xl font-bold">
                     {view.phase === 'waiting'
