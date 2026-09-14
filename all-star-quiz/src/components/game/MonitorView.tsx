@@ -3,9 +3,21 @@ import { useEffect, useState, type FC } from 'react';
 import { GAME_CONFIG } from '@/config/game';
 import type { GameSnapshot } from '@/types/game';
 import { remainingSeconds, type ServerClock } from '@/lib/server-clock';
+import { MonitorResults } from './MonitorResults';
+import type { ResultPresentation } from '@/lib/result-presentation';
 import { ChoiceImage } from './ChoiceImage';
-type Props = { state: GameSnapshot; clock: ServerClock | null };
-export const MonitorView: FC<Props> = ({ state, clock }) => {
+type Props = {
+  state: GameSnapshot;
+  clock: ServerClock | null;
+  presentation?: ResultPresentation | null;
+  reducedMotion?: boolean;
+};
+export const MonitorView: FC<Props> = ({
+  state,
+  clock,
+  presentation = null,
+  reducedMotion = false,
+}) => {
   const [remaining, setRemaining] = useState(() =>
     remainingSeconds(state.deadlineAt, clock)
   );
@@ -81,14 +93,17 @@ export const MonitorView: FC<Props> = ({ state, clock }) => {
             })}
           </div>
         </section>
+      ) : state.phase === 'results' || state.phase === 'finished' ? (
+        <MonitorResults
+          key={state.lastResult?.questionId || state.gameId}
+          state={state}
+          presentation={presentation}
+          reducedMotion={reducedMotion}
+        />
       ) : (
         <section className="space-y-6" aria-label="参加状況">
           <h2 className="text-4xl lg:text-6xl font-bold">
-            {state.phase === 'waiting'
-              ? '参加者を募集中'
-              : state.phase === 'finished'
-                ? 'ゲーム終了'
-                : '結果発表'}
+            {state.phase === 'waiting' ? '参加者を募集中' : 'ゲームを同期中'}
           </h2>
           <p className="text-2xl">
             {state.phase === 'waiting'

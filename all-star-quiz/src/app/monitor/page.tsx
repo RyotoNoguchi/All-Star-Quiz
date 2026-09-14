@@ -1,12 +1,15 @@
 'use client';
 import { useEffect, useState, type FC } from 'react';
 import Link from 'next/link';
+import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { useMonitorConnection } from '@/hooks/use-game-connection';
 import { MonitorView } from '@/components/game/MonitorView';
 import { Button } from '@/components/ui/button';
 const MonitorPage: FC = () => {
+  const { reducedMotion, system, setReducedMotion } = useReducedMotion();
   const [code, setCode] = useState('');
-  const { state, status, message, retry, clock } = useMonitorConnection(code);
+  const { state, status, message, retry, clock, presentation } =
+    useMonitorConnection(code);
   useEffect(() => {
     const value =
       new URLSearchParams(window.location.search).get('room')?.toUpperCase() ||
@@ -28,7 +31,24 @@ const MonitorPage: FC = () => {
             )}
           </div>
         )}
-        {state && <MonitorView state={state} clock={clock} />}
+        {state && (
+          <MonitorView
+            state={state}
+            clock={clock}
+            presentation={presentation}
+            reducedMotion={reducedMotion}
+          />
+        )}
+        <label className="flex items-center gap-3 text-lg">
+          <input
+            type="checkbox"
+            checked={reducedMotion}
+            disabled={system}
+            onChange={(event) => setReducedMotion(event.target.checked)}
+            className="size-5"
+          />
+          動きを減らす{system ? '（端末の設定を使用）' : ''}
+        </label>
         <Link
           href={code ? `/?room=${code}` : '/'}
           className="underline text-white/70"

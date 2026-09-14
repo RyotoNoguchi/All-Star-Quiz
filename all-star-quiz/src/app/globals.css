@@ -175,3 +175,11 @@
     transform: translateY(-10px);
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .quiz-bounce,
+  .quiz-shake,
+  .quiz-pulse {
+    animation: none !important;
+  }
+}

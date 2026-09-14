@@ -188,3 +188,51 @@ it('clears every same-browser tab on departure without affecting another room', 
     vi.unstubAllGlobals();
   }
 });
+it('starts a result presentation once and clears it on authoritative synchronization', async () => {
+  mocks.snapshot.mockResolvedValue({
+    ...state,
+    phase: 'playing',
+    question: {
+      id: 'question',
+      question: '問題',
+      choices: { A: '一', B: '二', C: '三', D: '四' },
+    },
+  });
+  const hook = await connected();
+  const event = {
+    gameId: 'game',
+    eventId: 'result-event',
+    version: 2,
+    serverTime: 2,
+    type: 'QUESTION_ENDED',
+    payload: {
+      questionId: 'question',
+      correctAnswer: 'A',
+      isFinal: false,
+      answers: [],
+      players: [
+        {
+          ...state.players[0]!,
+          isEliminated: true,
+          eliminationReason: 'wrong',
+        },
+      ],
+    },
+  };
+  act(() => sockets[0]!.fire('GAME_EVENT', event));
+  const presentation = hook.result.current.presentation;
+  expect(presentation?.newlyEliminatedIds).toEqual(['me']);
+  act(() => sockets[0]!.fire('GAME_EVENT', event));
+  expect(hook.result.current.presentation).toBe(presentation);
+  act(() =>
+    sockets[0]!.fire('GAME_EVENT', {
+      gameId: 'game',
+      eventId: 'sync-event',
+      version: 3,
+      serverTime: 3,
+      type: 'STATE_SYNC',
+      payload: { ...state, version: 3 },
+    })
+  );
+  expect(hook.result.current.presentation).toBeNull();
+});

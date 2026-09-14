@@ -8,6 +8,7 @@ import {
   parsePrivateSnapshot,
   parsePublicSnapshot,
 } from '@/lib/realtime-schema';
+import type { ResultPresentation } from '@/lib/result-presentation';
 import type { ServerClock } from '@/lib/server-clock';
 import type { GameSnapshot } from '@/types/game';
 
@@ -23,6 +24,7 @@ type Connection<T extends GameSnapshot> = {
   status: ConnectionStatus;
   message: string;
   clock: ServerClock | null;
+  presentation: ResultPresentation | null;
 };
 type Source<T extends GameSnapshot> = {
   ticket: (code: string, signal: AbortSignal) => Promise<{ ticket: string }>;
@@ -38,6 +40,7 @@ const useSyncedGame = <T extends GameSnapshot>(
     status: 'idle',
     message: '',
     clock: null,
+    presentation: null,
   });
   const [generation, setGeneration] = useState(0);
   const retry = useCallback(() => setGeneration((value) => value + 1), []);
@@ -49,14 +52,17 @@ const useSyncedGame = <T extends GameSnapshot>(
     let epoch = 0;
     let state: T | null = null;
     let clock: ServerClock | null = null;
+    let presentation: ResultPresentation | null = null;
     let targetVersion = -1;
     let syncing = false;
     const controller = new AbortController();
     const publish = (status: ConnectionStatus, message = '') => {
-      if (!stopped) setConnection({ state, status, message, clock });
+      if (!stopped)
+        setConnection({ state, status, message, clock, presentation });
     };
     const denied = () => {
       state = null;
+      presentation = null;
       publish('denied', source.deniedMessage);
       stopped = true;
       controller.abort();
@@ -85,6 +91,7 @@ const useSyncedGame = <T extends GameSnapshot>(
       socket?.removeAllListeners();
       socket?.disconnect();
       syncing = false;
+      presentation = null;
       clearTimeout(timer);
       attempts++;
       if (attempts >= 5) {
@@ -103,6 +110,7 @@ const useSyncedGame = <T extends GameSnapshot>(
     const sync = async (attempt: number) => {
       if (!valid(attempt) || syncing) return;
       syncing = true;
+      presentation = null;
       publish(
         state ? 'reconnecting' : 'connecting',
         '最新の状態を取得しています…'
@@ -158,10 +166,37 @@ const useSyncedGame = <T extends GameSnapshot>(
             const event = parseGameEvent(raw);
             if (state && event.gameId !== state.gameId) return;
             targetVersion = Math.max(targetVersion, event.version);
+            const previous = state;
             const update = applyGameEvent(state, event);
             state = update.state;
             if (update.needsSync) void sync(attempt);
-            else if (!syncing) publish('connected');
+            else if (!syncing) {
+              if (previous && event.version > previous.version) {
+                if (event.type === 'QUESTION_ENDED')
+                  presentation = {
+                    eventId: event.eventId,
+                    gameId: event.gameId,
+                    questionId: event.payload.questionId,
+                    startedAt: performance.now(),
+                    isFinal: event.payload.isFinal,
+                    newlyEliminatedIds: event.payload.players
+                      .filter(
+                        (player) =>
+                          player.isEliminated &&
+                          previous.players.some(
+                            (old) => old.id === player.id && !old.isEliminated
+                          )
+                      )
+                      .map((player) => player.id),
+                  };
+                else if (
+                  event.type === 'QUESTION_STARTED' ||
+                  event.type === 'STATE_SYNC'
+                )
+                  presentation = null;
+              }
+              publish('connected');
+            }
           } catch {
             void sync(attempt);
           }
