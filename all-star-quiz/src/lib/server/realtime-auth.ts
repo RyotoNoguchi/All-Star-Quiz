@@ -5,6 +5,7 @@ import { hashToken, type GuestIdentity } from './session';
 
 const payloadSchema = z
   .object({
+    role: z.enum(['player', 'monitor']).default('player'),
     sessionHash: z.string().regex(/^[a-f0-9]{64}$/),
     gameId: z.string(),
     origin: z.string(),
@@ -13,6 +14,7 @@ const payloadSchema = z
   })
   .strict();
 export type RealtimeIdentity = {
+  role: 'player' | 'monitor';
   sessionHash: string;
   gameId: string;
   userId: string;
@@ -32,7 +34,8 @@ const sign = (value: string) =>
   createHmac('sha256', secret()).update(value).digest('base64url');
 export const currentRealtimeIdentity = async (
   sessionHash: string,
-  gameId: string
+  gameId: string,
+  role: 'player' | 'monitor' = 'player'
 ): Promise<RealtimeIdentity> => {
   const session = await db.guestSession.findUnique({
     where: { tokenHash: sessionHash },
@@ -48,8 +51,10 @@ export const currentRealtimeIdentity = async (
   const player = await db.participant.findUnique({
     where: { gameId_userId: { gameId, userId: session.userId } },
   });
-  if (!player || player.leftAt) throw new Error('UNAUTHORIZED');
+  if (!player || player.leftAt || (role === 'monitor' && !player.isHost))
+    throw new Error('UNAUTHORIZED');
   return {
+    role,
     sessionHash,
     gameId,
     userId: session.userId,
@@ -61,17 +66,20 @@ export const currentRealtimeIdentity = async (
 export const issueRealtimeTicket = async (
   identity: GuestIdentity,
   code: string,
-  origin: string
+  origin: string,
+  role: 'player' | 'monitor' = 'player'
 ) => {
   const game = await db.game.findUnique({ where: { code } });
   if (!game) throw new Error('UNAUTHORIZED');
   const current = await currentRealtimeIdentity(
     hashToken(identity.token),
-    game.id
+    game.id,
+    role
   );
   const expiresAt = Math.min(Date.now() + 60000, current.expiresAt);
   const payload = Buffer.from(
     JSON.stringify({
+      role,
       sessionHash: current.sessionHash,
       gameId: game.id,
       origin,
@@ -106,7 +114,8 @@ export const verifyRealtimeTicket = async (ticket: unknown, origin: string) => {
   return {
     identity: await currentRealtimeIdentity(
       payload.sessionHash,
-      payload.gameId
+      payload.gameId,
+      payload.role
     ),
     nonce: payload.nonce,
     expiresAt: payload.expiresAt,

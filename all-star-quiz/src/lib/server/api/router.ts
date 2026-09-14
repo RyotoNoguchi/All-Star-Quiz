@@ -1,3 +1,4 @@
+import { monitorRouter } from './monitor';
 import { answersRouter } from './answers';
 import { gamesRouter } from './games';
 import { realtimeRouter } from './realtime';
@@ -6,6 +7,7 @@ import { adminRouter } from './admin';
 import { trpc } from './trpc';
 import { roomsRouter } from './rooms';
 export const appRouter = trpc.router({
+  monitor: monitorRouter,
   rooms: roomsRouter,
   answers: answersRouter,
   games: gamesRouter,

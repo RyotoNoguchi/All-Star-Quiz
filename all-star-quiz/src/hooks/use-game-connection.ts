@@ -3,9 +3,13 @@ import { useEffect, useState, useCallback } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { api, apiErrorStatus } from '@/lib/api-client';
 import { applyGameEvent, applyGameSnapshot } from '@/lib/game-sync';
-import { parseGameEvent, parsePrivateSnapshot } from '@/lib/realtime-schema';
+import {
+  parseGameEvent,
+  parsePrivateSnapshot,
+  parsePublicSnapshot,
+} from '@/lib/realtime-schema';
 import type { ServerClock } from '@/lib/server-clock';
-import type { PrivateGameSnapshot } from '@/types/game';
+import type { GameSnapshot } from '@/types/game';
 
 export type ConnectionStatus =
   | 'idle'
@@ -14,14 +18,22 @@ export type ConnectionStatus =
   | 'reconnecting'
   | 'failed'
   | 'denied';
-type Connection = {
-  state: PrivateGameSnapshot | null;
+type Connection<T extends GameSnapshot> = {
+  state: T | null;
   status: ConnectionStatus;
   message: string;
   clock: ServerClock | null;
 };
-export const useGameConnection = (code: string) => {
-  const [connection, setConnection] = useState<Connection>({
+type Source<T extends GameSnapshot> = {
+  ticket: (code: string, signal: AbortSignal) => Promise<{ ticket: string }>;
+  snapshot: (code: string, signal: AbortSignal) => Promise<T>;
+  deniedMessage: string;
+};
+const useSyncedGame = <T extends GameSnapshot>(
+  code: string,
+  source: Source<T>
+) => {
+  const [connection, setConnection] = useState<Connection<T>>({
     state: null,
     status: 'idle',
     message: '',
@@ -35,7 +47,7 @@ export const useGameConnection = (code: string) => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let attempts = 0;
     let epoch = 0;
-    let state: PrivateGameSnapshot | null = null;
+    let state: T | null = null;
     let clock: ServerClock | null = null;
     let targetVersion = -1;
     let syncing = false;
@@ -45,10 +57,7 @@ export const useGameConnection = (code: string) => {
     };
     const denied = () => {
       state = null;
-      publish(
-        'denied',
-        '退出したか、参加の有効期限が切れました。参加し直してください。'
-      );
+      publish('denied', source.deniedMessage);
       stopped = true;
       controller.abort();
       socket?.disconnect();
@@ -101,12 +110,7 @@ export const useGameConnection = (code: string) => {
       try {
         do {
           const started = performance.now();
-          const snapshot = parsePrivateSnapshot(
-            await api.games.snapshot.query(
-              { code },
-              { signal: controller.signal }
-            )
-          );
+          const snapshot = await source.snapshot(code, controller.signal);
           if (!valid(attempt)) return;
           const measuredAt = performance.now();
           clock = {
@@ -136,10 +140,7 @@ export const useGameConnection = (code: string) => {
           );
           return;
         }
-        const { ticket } = await api.realtime.ticket.mutate(
-          { code },
-          { signal: controller.signal }
-        );
+        const { ticket } = await source.ticket(code, controller.signal);
         if (!valid(attempt)) return;
         socket = io(url, {
           transports: ['websocket'],
@@ -189,7 +190,7 @@ export const useGameConnection = (code: string) => {
       channel?.close();
       document.removeEventListener('visibilitychange', resume);
     };
-  }, [code, generation]);
+  }, [code, generation, source]);
   // Hide the previous room synchronously, even before the effect cleanup runs.
   return {
     ...connection,
@@ -204,3 +205,24 @@ export const announceRoomDeparture = (code: string) => {
   channel.postMessage({ left: code });
   channel.close();
 };
+
+const playerSource = {
+  ticket: (code: string, signal: AbortSignal) =>
+    api.realtime.ticket.mutate({ code }, { signal }),
+  snapshot: async (code: string, signal: AbortSignal) =>
+    parsePrivateSnapshot(await api.games.snapshot.query({ code }, { signal })),
+  deniedMessage:
+    '退出したか、参加の有効期限が切れました。参加し直してください。',
+};
+const monitorSource = {
+  ticket: (code: string, signal: AbortSignal) =>
+    api.monitor.ticket.mutate({ code }, { signal }),
+  snapshot: async (code: string, signal: AbortSignal) =>
+    parsePublicSnapshot(await api.monitor.snapshot.query({ code }, { signal })),
+  deniedMessage:
+    'このルームのホストだけがモニターを表示できます。参加状況と有効期限を確認してください。',
+};
+export const useGameConnection = (code: string) =>
+  useSyncedGame(code, playerSource);
+export const useMonitorConnection = (code: string) =>
+  useSyncedGame(code, monitorSource);

@@ -1,22 +1,32 @@
-import type { GameEvent, PrivateGameSnapshot } from '@/types/game';
+import type {
+  GameEvent,
+  GameSnapshot,
+  PrivateGameSnapshot,
+} from '@/types/game';
 
-export type SyncUpdate = {
-  state: PrivateGameSnapshot | null;
+type SyncedSnapshot = GameSnapshot &
+  Partial<Pick<PrivateGameSnapshot, 'playerId' | 'ownAnswer'>>;
+export type SyncUpdate<T extends SyncedSnapshot = PrivateGameSnapshot> = {
+  state: T | null;
   needsSync: boolean;
   finalBell: boolean;
 };
 
-export const applyGameEvent = (
-  state: PrivateGameSnapshot | null,
+export const applyGameEvent = <T extends SyncedSnapshot>(
+  state: T | null,
   event: GameEvent
-): SyncUpdate => {
+): SyncUpdate<T> => {
   const unchanged = { state, needsSync: false, finalBell: false };
   if (!state) return { ...unchanged, needsSync: true };
   if (event.gameId !== state.gameId || event.version <= state.version)
     return unchanged;
   if (event.version !== state.version + 1)
     return { ...unchanged, needsSync: true };
-  let next = { ...state, version: event.version, serverTime: event.serverTime };
+  let next: SyncedSnapshot = {
+    ...state,
+    version: event.version,
+    serverTime: event.serverTime,
+  };
   switch (event.type) {
     case 'STATE_SYNC':
       if (
@@ -24,7 +34,8 @@ export const applyGameEvent = (
         event.payload.version !== event.version
       )
         return { ...unchanged, needsSync: true };
-      next = { ...event.payload, playerId: state.playerId };
+      next = { ...event.payload };
+      if (state.playerId !== undefined) next.playerId = state.playerId;
       if (state.ownAnswer?.questionId === next.question?.id && state.ownAnswer)
         next.ownAnswer = state.ownAnswer;
       break;
@@ -57,17 +68,17 @@ export const applyGameEvent = (
       break;
   }
   return {
-    state: next,
+    state: next as T,
     needsSync: false,
     finalBell: event.type === 'QUESTION_ENDED' && event.payload.isFinal,
   };
 };
 
 // A delayed snapshot must never roll back newer events. Synchronization is silent.
-export const applyGameSnapshot = (
-  state: PrivateGameSnapshot | null,
-  snapshot: PrivateGameSnapshot
-): PrivateGameSnapshot =>
+export const applyGameSnapshot = <T extends SyncedSnapshot>(
+  state: T | null,
+  snapshot: T
+): T =>
   state && state.gameId === snapshot.gameId && state.version > snapshot.version
     ? state
     : snapshot;

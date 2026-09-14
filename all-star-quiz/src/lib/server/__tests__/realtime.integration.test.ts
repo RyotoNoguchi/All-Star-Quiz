@@ -296,6 +296,19 @@ it('binds socket answers to the authenticated room and returns the receipt only 
   expect(synced.state.ownAnswer).toEqual(response.receipt);
   const peerState = await other.timeout(2000).emitWithAck('SYNC_ROOM', {});
   expect(peerState.state).not.toHaveProperty('ownAnswer');
+  const monitorTicket = await issueRealtimeTicket(
+    guest,
+    game.code,
+    origin,
+    'monitor'
+  );
+  const monitor = await connect(b.port, monitorTicket.ticket);
+  const monitorState = await monitor.timeout(2000).emitWithAck('SYNC_ROOM', {});
+  expect(monitorState.state.answerCount).toBe(1);
+  expect(monitorState.state).not.toHaveProperty('ownAnswer');
+  expect(JSON.stringify(monitorState)).not.toContain(payload.requestId);
+  expect(monitorState.state.question).not.toHaveProperty('answer');
+  expect(monitorState.state.question).not.toHaveProperty('type');
   expect(live.some((value) => value.type === 'ANSWER_COUNT_UPDATED')).toBe(
     true
   );
@@ -331,4 +344,58 @@ it('binds socket answers to the authenticated room and returns the receipt only 
     correctAnswer: 'A',
     isFinal: true,
   });
+});
+
+it('grants read-only monitor access only to the current host and revokes it after transfer', async () => {
+  const host = await createGuestSession();
+  const peer = await createGuestSession();
+  const room = await createRoom('モニターホスト', host.userId);
+  await joinRoom(room.room.code, '次のホスト', peer.userId);
+  const caller = async (guest: GuestIdentity) =>
+    appRouter.createCaller(
+      await createContext(
+        new NextRequest(`${origin}/api/trpc`, {
+          headers: { origin, cookie: `quiz-participant=${guest.token}` },
+        }),
+        new Headers()
+      )
+    );
+  await expect(
+    (await caller(peer)).monitor.ticket({ code: room.room.code })
+  ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  await expect(
+    (await caller(peer)).monitor.snapshot({ code: room.room.code })
+  ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  const issued = await (
+    await caller(host)
+  ).monitor.ticket({ code: room.room.code });
+  const monitor = await connect(a.port, issued.ticket);
+  const snapshot = await monitor.timeout(2000).emitWithAck('SYNC_ROOM', {});
+  expect(snapshot).toMatchObject({
+    ok: true,
+    state: { code: room.room.code, players: expect.any(Array) },
+  });
+  expect(snapshot.state).not.toHaveProperty('playerId');
+  expect(snapshot.state).not.toHaveProperty('ownAnswer');
+  expect(
+    await db.realtimeConnection.count({ where: { id: monitor.id! } })
+  ).toBe(0);
+  expect(snapshot.state.players).toHaveLength(2);
+  expect(
+    await monitor.timeout(2000).emitWithAck('SUBMIT_ANSWER', {
+      questionId: 'q',
+      requestId: randomUUID(),
+      choice: 'A',
+    })
+  ).toEqual({ ok: false, code: 'FORBIDDEN' });
+  const disconnected = event(monitor, 'disconnect');
+  await leaveRoom(room.room.code, host.userId);
+  await a.flushEvents();
+  await disconnected;
+  await expect(
+    (await caller(host)).monitor.snapshot({ code: room.room.code })
+  ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  expect(
+    await (await caller(peer)).monitor.snapshot({ code: room.room.code })
+  ).toMatchObject({ hostId: expect.any(String) });
 });
