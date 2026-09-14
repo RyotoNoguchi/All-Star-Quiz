@@ -3,6 +3,7 @@ import { useEffect, useState, type FC } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api, apiErrorStatus } from '@/lib/api-client';
+import { QuestionManager } from './QuestionManager';
 import { Button } from '@/components/ui/button';
 type Props = { email: string };
 export const AdminDashboard: FC<Props> = ({ email }) => {
@@ -28,10 +29,10 @@ export const AdminDashboard: FC<Props> = ({ email }) => {
     };
   }, [router]);
   return (
-    <div className="max-w-xl mx-auto space-y-5">
+    <div className="max-w-5xl mx-auto space-y-5">
       <h2 className="text-2xl font-bold">管理者メニュー</h2>
       <p>{email} でログイン中</p>
-      <p>問題の編集画面は準備中です。</p>
+      <QuestionManager />
       {error && <p role="alert">{error}</p>}
       <Button
         disabled={busy}

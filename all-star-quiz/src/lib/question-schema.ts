@@ -3,12 +3,16 @@ const text = z.string().trim().min(1).max(200);
 const image = z
   .object({
     url: z
-      .url()
+      .string()
       .max(2048)
-      .refine(
-        (url) => new URL(url).protocol === 'https:',
-        'HTTPS画像URLが必要です。'
-      ),
+      .refine((url) => {
+        if (/^\/api\/question-images\/[0-9a-f-]{36}$/.test(url)) return true;
+        try {
+          return new URL(url).protocol === 'https:';
+        } catch {
+          return false;
+        }
+      }, 'HTTPS画像URLが必要です。'),
     alt: text,
   })
   .strict();

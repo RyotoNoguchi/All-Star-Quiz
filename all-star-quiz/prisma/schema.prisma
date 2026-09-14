@@ -225,3 +225,9 @@ model GameEventRecord {
   @@unique([gameId, version])
   @@index([publishedAt, createdAt])
 }
+
+model QuestionImage {
+  id String @id @default(uuid())
+  data Bytes
+  createdAt DateTime @default(now())
+}

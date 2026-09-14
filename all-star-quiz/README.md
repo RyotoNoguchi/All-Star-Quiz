@@ -87,7 +87,7 @@ Run `npm ci` with the Node version in `.node-version`, then `npm run check` befo
 
 ## Question management and shared state
 
-[問題管理API](docs/QUESTIONS.md) covers administrator CRUD, category selection and immutable game question sets.
+[問題管理画面とAPI](docs/QUESTIONS.md) covers administrator editing, previews, validated image uploads, category selection and immutable game question sets.
 [共有状態](docs/SHARED_STATE.md) covers the Redis cache, expiring leases, PostgreSQL authority and recovery.
 Run `docker compose up -d` for both PostgreSQL and Redis. Configure `TEST_DATABASE_URL` and `TEST_REDIS_URL` from `.env.example` before running `npm run check`; its database integration suite also verifies Redis with an isolated key prefix.
 
