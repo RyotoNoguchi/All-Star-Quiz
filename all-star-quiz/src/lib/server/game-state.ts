@@ -114,3 +114,25 @@ export const readPrivateSnapshot = async (code: string, userId: string) =>
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead }
   );
+
+export const readMonitorSnapshot = async (code: string, userId: string) =>
+  db.$transaction(
+    async (tx) => {
+      const game = await tx.game.findUnique({ where: { code } });
+      if (!game || game.expiresAt.getTime() <= Date.now())
+        throw new GameFlowError(
+          'GAME_NOT_FOUND',
+          'ルームの有効期限が切れました。'
+        );
+      const host = await tx.participant.findFirst({
+        where: { gameId: game.id, userId, isHost: true, leftAt: null },
+      });
+      if (!host)
+        throw new GameFlowError(
+          'FORBIDDEN',
+          'ホストだけがモニターを表示できます。'
+        );
+      return snapshotForGame(tx, game);
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead }
+  );

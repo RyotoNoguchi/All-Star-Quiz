@@ -197,6 +197,16 @@ const Home: FC = () => {
                 </p>
               </>
             )}
+            {view.hostId === view.playerId && (
+              <Link
+                href={`/monitor?room=${view.code}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block underline text-white/80"
+              >
+                大画面モニターを開く
+              </Link>
+            )}
             <Button
               disabled={busy}
               onClick={() => void submit('leave')}

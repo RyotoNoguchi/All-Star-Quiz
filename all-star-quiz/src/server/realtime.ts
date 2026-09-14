@@ -16,7 +16,10 @@ import {
   verifyRealtimeTicket,
   type RealtimeIdentity,
 } from '../lib/server/realtime-auth';
-import { readPrivateSnapshot } from '../lib/server/game-state';
+import {
+  readPrivateSnapshot,
+  readMonitorSnapshot,
+} from '../lib/server/game-state';
 import { dispatchGameEvents } from '../lib/server/event-dispatch';
 import { parseGameEvent } from '../lib/realtime-schema';
 import { db } from '../lib/server/db';
@@ -105,7 +108,8 @@ export const startRealtimeServer = async (options: {
               try {
                 await currentRealtimeIdentity(
                   identity.sessionHash,
-                  identity.gameId
+                  identity.gameId,
+                  identity.role
                 );
                 if (socket.connected) socket.emit('GAME_EVENT', event);
               } catch {
@@ -161,11 +165,12 @@ export const startRealtimeServer = async (options: {
           PXAT: verified.expiresAt,
         });
       if (accepted !== 'OK') throw new Error('UNAUTHORIZED');
-      await heartbeatConnection(
-        socket.id,
-        verified.identity.gameId,
-        verified.identity.playerId
-      );
+      if (verified.identity.role === 'player')
+        await heartbeatConnection(
+          socket.id,
+          verified.identity.gameId,
+          verified.identity.playerId
+        );
       socket.data.identity = verified.identity;
       next();
     } catch {
@@ -175,7 +180,8 @@ export const startRealtimeServer = async (options: {
   io.on('connection', (socket) => {
     const identity = socket.data.identity as RealtimeIdentity;
     void socket.join(`game:${identity.gameId}`);
-    void socket.join(`player:${identity.playerId}`);
+    if (identity.role === 'player')
+      void socket.join(`player:${identity.playerId}`);
     const expiry = setTimeout(
       () => socket.disconnect(true),
       Math.min(identity.expiresAt - Date.now(), 2147483647)
@@ -186,8 +192,12 @@ export const startRealtimeServer = async (options: {
       if (checking) return;
       checking = true;
       try {
-        await currentRealtimeIdentity(identity.sessionHash, identity.gameId);
-        if (!socket.connected) return;
+        await currentRealtimeIdentity(
+          identity.sessionHash,
+          identity.gameId,
+          identity.role
+        );
+        if (!socket.connected || identity.role === 'monitor') return;
         pendingHeartbeat = heartbeatConnection(
           socket.id,
           identity.gameId,
@@ -206,13 +216,18 @@ export const startRealtimeServer = async (options: {
     socket.on('disconnect', () => {
       clearTimeout(expiry);
       clearInterval(guard);
-      track(
-        pendingHeartbeat
-          .catch(() => undefined)
-          .then(() =>
-            disconnectConnection(socket.id, identity.gameId, identity.playerId)
-          )
-      );
+      if (identity.role === 'player')
+        track(
+          pendingHeartbeat
+            .catch(() => undefined)
+            .then(() =>
+              disconnectConnection(
+                socket.id,
+                identity.gameId,
+                identity.playerId
+              )
+            )
+        );
     });
     let windowStart = Date.now();
     let events = 0;
@@ -234,6 +249,10 @@ export const startRealtimeServer = async (options: {
     });
     socket.on('SUBMIT_ANSWER', async (payload: unknown, ack: unknown) => {
       if (typeof ack !== 'function' || !socket.connected) return;
+      if (identity.role === 'monitor') {
+        ack({ ok: false, code: 'FORBIDDEN' });
+        return;
+      }
       const parsed = answerInputSchema
         .omit({ gameId: true })
         .safeParse(payload);
@@ -242,7 +261,11 @@ export const startRealtimeServer = async (options: {
         return;
       }
       try {
-        await currentRealtimeIdentity(identity.sessionHash, identity.gameId);
+        await currentRealtimeIdentity(
+          identity.sessionHash,
+          identity.gameId,
+          identity.role
+        );
         const receipt = await submitAnswer(identity.userId, {
           ...parsed.data,
           gameId: identity.gameId,
@@ -267,8 +290,16 @@ export const startRealtimeServer = async (options: {
         return;
       }
       try {
-        await currentRealtimeIdentity(identity.sessionHash, identity.gameId);
-        const state = await readPrivateSnapshot(identity.code, identity.userId);
+        await currentRealtimeIdentity(
+          identity.sessionHash,
+          identity.gameId,
+          identity.role
+        );
+        const state = await (
+          identity.role === 'monitor'
+            ? readMonitorSnapshot
+            : readPrivateSnapshot
+        )(identity.code, identity.userId);
         ack({ ok: true, state, serverTime: Date.now() });
       } catch {
         ack({ ok: false, code: 'UNAUTHORIZED' });

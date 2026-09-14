@@ -4,7 +4,11 @@ import {
   publicPlayerSchema,
   questionResultSchema,
 } from './result-schema';
-import type { GameEvent, PrivateGameSnapshot } from '@/types/game';
+import type {
+  GameEvent,
+  GameSnapshot,
+  PrivateGameSnapshot,
+} from '@/types/game';
 export const publicQuestionSchema = z.object({
   id: z.string(),
   question: z.string(),
@@ -104,3 +108,6 @@ export const parseGameEvent = (value: unknown): GameEvent =>
   gameEventSchema.parse(value) as GameEvent;
 export const parsePrivateSnapshot = (value: unknown): PrivateGameSnapshot =>
   privateSnapshotSchema.parse(value) as PrivateGameSnapshot;
+
+export const parsePublicSnapshot = (value: unknown): GameSnapshot =>
+  publicSnapshotSchema.parse(value) as GameSnapshot;
