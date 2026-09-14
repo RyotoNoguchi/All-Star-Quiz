@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, type FC, type FormEvent } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
+import { PlayerQuestion } from '@/components/game/PlayerQuestion';
 import { GameLayout } from '@/components/layout/GameLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +17,13 @@ const Home: FC = () => {
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [activeCode, setActiveCode] = useState('');
-  const { state: view, status, message, retry } = useGameConnection(activeCode);
+  const {
+    state: view,
+    status,
+    message,
+    retry,
+    clock,
+  } = useGameConnection(activeCode);
   const operation = useRef(0);
   useEffect(
     () => () => {
@@ -109,64 +116,83 @@ const Home: FC = () => {
         )}
         {view ? (
           <>
-            <div className="text-center space-y-3">
-              <p className="text-white/70">
-                {view.phase === 'waiting'
-                  ? '参加者を募集中'
-                  : view.phase === 'finished'
-                    ? 'ゲームが終了しました'
-                    : 'ゲーム進行中'}
-              </p>
-              <h2 className="text-2xl font-bold">
-                {view.phase === 'waiting' ? 'クイズの待合室' : 'クイズルーム'}
-              </h2>
-              <p>ルームコード</p>
-              <p className="text-4xl font-mono tracking-widest font-bold">
-                {view.code}
-              </p>
-              <Button
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(window.location.href);
-                    setNotice('招待リンクをコピーしました。');
-                  } catch {
-                    setNotice(
-                      'アドレスバーのURL、またはルームコードを共有してください。'
-                    );
-                  }
-                }}
-              >
-                招待リンクをコピー
-              </Button>
-              <p role="status" className="text-sm">
-                {notice}
-              </p>
-            </div>
-            <h3 className="font-bold">
-              参加者 {view.players.filter((player) => !player.leftAt).length} /
-              20人
-            </h3>
-            <ul className="space-y-2" aria-label="参加者一覧">
-              {view.players
-                .filter((player) => !player.leftAt)
-                .map((player) => (
-                  <li
-                    key={player.id}
-                    className="flex justify-between rounded-lg bg-white/10 p-4"
+            {view.question &&
+            (view.phase === 'playing' || view.phase === 'closing') ? (
+              <PlayerQuestion
+                key={`${view.gameId}:${view.playerId}:${view.question.id}`}
+                state={view}
+                connected={status === 'connected'}
+                clock={clock}
+              />
+            ) : (
+              <>
+                <div className="text-center space-y-3">
+                  <p className="text-white/70">
+                    {view.phase === 'waiting'
+                      ? '参加者を募集中'
+                      : view.phase === 'finished'
+                        ? 'ゲームが終了しました'
+                        : 'ゲーム進行中'}
+                  </p>
+                  <h2 className="text-2xl font-bold">
+                    {view.phase === 'waiting'
+                      ? 'クイズの待合室'
+                      : 'クイズルーム'}
+                  </h2>
+                  <p>ルームコード</p>
+                  <p className="text-4xl font-mono tracking-widest font-bold">
+                    {view.code}
+                  </p>
+                  <Button
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(
+                          window.location.href
+                        );
+                        setNotice('招待リンクをコピーしました。');
+                      } catch {
+                        setNotice(
+                          'アドレスバーのURL、またはルームコードを共有してください。'
+                        );
+                      }
+                    }}
                   >
-                    <span>
-                      {player.name}
-                      {player.id === view.playerId ? '（あなた）' : ''}
-                    </span>
-                    {player.isHost && (
-                      <span className="text-yellow-300">ホスト</span>
-                    )}
-                  </li>
-                ))}
-            </ul>
-            <p className="text-sm text-white/70">
-              参加者一覧とホストは自動で更新されます。出題・回答画面は準備中です。
-            </p>
+                    招待リンクをコピー
+                  </Button>
+                  <p role="status" className="text-sm">
+                    {notice}
+                  </p>
+                </div>
+                <h3 className="font-bold">
+                  参加者{' '}
+                  {view.players.filter((player) => !player.leftAt).length} /
+                  20人
+                </h3>
+                <ul className="space-y-2" aria-label="参加者一覧">
+                  {view.players
+                    .filter((player) => !player.leftAt)
+                    .map((player) => (
+                      <li
+                        key={player.id}
+                        className="flex justify-between rounded-lg bg-white/10 p-4"
+                      >
+                        <span>
+                          {player.name}
+                          {player.id === view.playerId ? '（あなた）' : ''}
+                        </span>
+                        {player.isHost && (
+                          <span className="text-yellow-300">ホスト</span>
+                        )}
+                      </li>
+                    ))}
+                </ul>
+                <p className="text-sm text-white/70">
+                  {view.phase === 'waiting'
+                    ? '参加者一覧とホストは自動で更新されます。開始すると問題が表示されます。'
+                    : '次の案内をお待ちください。'}
+                </p>
+              </>
+            )}
             <Button
               disabled={busy}
               onClick={() => void submit('leave')}

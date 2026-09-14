@@ -4,6 +4,7 @@ import { io, type Socket } from 'socket.io-client';
 import { api, apiErrorStatus } from '@/lib/api-client';
 import { applyGameEvent, applyGameSnapshot } from '@/lib/game-sync';
 import { parseGameEvent, parsePrivateSnapshot } from '@/lib/realtime-schema';
+import type { ServerClock } from '@/lib/server-clock';
 import type { PrivateGameSnapshot } from '@/types/game';
 
 export type ConnectionStatus =
@@ -17,12 +18,14 @@ type Connection = {
   state: PrivateGameSnapshot | null;
   status: ConnectionStatus;
   message: string;
+  clock: ServerClock | null;
 };
 export const useGameConnection = (code: string) => {
   const [connection, setConnection] = useState<Connection>({
     state: null,
     status: 'idle',
     message: '',
+    clock: null,
   });
   const [generation, setGeneration] = useState(0);
   const retry = useCallback(() => setGeneration((value) => value + 1), []);
@@ -33,11 +36,12 @@ export const useGameConnection = (code: string) => {
     let attempts = 0;
     let epoch = 0;
     let state: PrivateGameSnapshot | null = null;
+    let clock: ServerClock | null = null;
     let targetVersion = -1;
     let syncing = false;
     const controller = new AbortController();
     const publish = (status: ConnectionStatus, message = '') => {
-      if (!stopped) setConnection({ state, status, message });
+      if (!stopped) setConnection({ state, status, message, clock });
     };
     const denied = () => {
       state = null;
@@ -96,6 +100,7 @@ export const useGameConnection = (code: string) => {
       );
       try {
         do {
+          const started = performance.now();
           const snapshot = parsePrivateSnapshot(
             await api.games.snapshot.query(
               { code },
@@ -103,6 +108,11 @@ export const useGameConnection = (code: string) => {
             )
           );
           if (!valid(attempt)) return;
+          const measuredAt = performance.now();
+          clock = {
+            serverTime: snapshot.serverTime + (measuredAt - started) / 2,
+            measuredAt,
+          };
           state = applyGameSnapshot(state, snapshot);
         } while (state.version < targetVersion);
         attempts = 0;

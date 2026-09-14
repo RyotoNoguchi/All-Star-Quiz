@@ -5,6 +5,7 @@ import { type Choice } from '@/config/game';
 type Props = {
   choice: Choice;
   children: ReactNode;
+  label?: string;
   onClick?: (choice: Choice) => void;
   disabled?: boolean;
   isSelected?: boolean;
@@ -12,7 +13,7 @@ type Props = {
   showResult?: boolean;
 };
 
-export const QuizButton: FC<Props> = memo(function QuizButton(props) {
+export const QuizButton: FC<Props> = memo((props) => {
   const { onClick, choice } = props;
 
   const handleClick = useCallback(() => {
@@ -33,7 +34,7 @@ export const QuizButton: FC<Props> = memo(function QuizButton(props) {
 
   const buttonClassName = useMemo(() => {
     let baseClasses =
-      'w-full h-16 text-lg font-semibold transition-all duration-200 border-2';
+      'w-full min-h-16 h-auto whitespace-normal break-words py-4 text-lg font-semibold transition-all duration-200 border-2';
 
     if (props.showResult) {
       if (props.isSelected && props.isCorrect) {
@@ -66,7 +67,13 @@ export const QuizButton: FC<Props> = memo(function QuizButton(props) {
       className={buttonClassName}
       onClick={handleClick}
       disabled={props.disabled}
-      aria-label={`選択肢${props.choice}: ${props.children}`}
+      aria-label={
+        props.label
+          ? `選択肢${props.choice}: ${props.label}`
+          : typeof props.children === 'string'
+            ? `選択肢${props.choice}: ${props.children}`
+            : undefined
+      }
       aria-pressed={props.isSelected}
       aria-describedby={
         props.showResult && props.isCorrect ? 'correct-answer' : undefined
@@ -89,3 +96,5 @@ export const QuizButton: FC<Props> = memo(function QuizButton(props) {
     </Button>
   );
 });
+
+QuizButton.displayName = 'QuizButton';

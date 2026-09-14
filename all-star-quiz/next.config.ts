@@ -15,7 +15,7 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // Next.js requires unsafe-eval for dev
               "style-src 'self' 'unsafe-inline'", // Tailwind requires unsafe-inline
-              "img-src 'self' data: blob:",
+              "img-src 'self' https: data: blob:",
               "font-src 'self' data:",
               "connect-src 'self' ws: wss:", // WebSocket support for future Socket.io
               "media-src 'self'",
