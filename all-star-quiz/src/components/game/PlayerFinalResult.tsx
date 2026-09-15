@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { FC } from 'react';
 import type { PrivateGameSnapshot } from '@/types/game';
 import { finishLabels } from '@/lib/game-labels';
@@ -26,6 +27,12 @@ export const PlayerFinalResult: FC<Props> = ({ state }) => {
             : '今回は優勝者なしです。'}
         </p>
         <p>{finishLabels[result.reason]}</p>
+        <Link
+          className="inline-block underline"
+          href={`/history?game=${state.gameId}`}
+        >
+          このゲームの個人成績を見る
+        </Link>
         {own && (
           <p className="text-lg">
             あなたの順位：<strong>{own.rank}位</strong> ／ 生存した問題：

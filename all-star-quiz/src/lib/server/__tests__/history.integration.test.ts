@@ -161,3 +161,47 @@ it('backfills existing finished games without changing saved ranking', async () 
     await db.personalResult.findMany({ orderBy: { userId: 'asc' } })
   ).toEqual(saved);
 });
+it('aggregates all personal games independently of pagination and other players', async () => {
+  const host = await createGuestSession();
+  const other = await createGuestSession();
+  for (const [i, survivedQuestions] of [0, 2, 5].entries()) {
+    const room = await createRoom('成績', host.userId);
+    await joinRoom(room.room.code, '別人', other.userId);
+    const game = await db.game.findUniqueOrThrow({
+      where: { code: room.room.code },
+    });
+    await runHostCommand(host.userId, {
+      gameId: game.id,
+      action: 'cancel',
+      requestId: randomUUID(),
+      expectedVersion: game.version,
+    });
+    await db.personalResult.update({
+      where: { gameId_userId: { gameId: game.id, userId: host.userId } },
+      data: { survivedQuestions, isWinner: i === 2 },
+    });
+    await db.personalResult.update({
+      where: { gameId_userId: { gameId: game.id, userId: other.userId } },
+      data: { survivedQuestions: 50, isWinner: true },
+    });
+  }
+  const api = await caller(host.token);
+  expect((await api.history.list({ limit: 1 })).items).toHaveLength(1);
+  expect(await api.history.stats()).toEqual({
+    games: 3,
+    wins: 1,
+    averageSurvived: 7 / 3,
+    bestSurvived: 5,
+  });
+  const stranger = await createGuestSession();
+  expect(await (await caller(stranger.token)).history.stats()).toEqual({
+    games: 0,
+    wins: 0,
+    averageSurvived: 0,
+    bestSurvived: 0,
+  });
+  await revokeSession(host.token);
+  await expect(
+    (await caller(host.token)).history.stats()
+  ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+});

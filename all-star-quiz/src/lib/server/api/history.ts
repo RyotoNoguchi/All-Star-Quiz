@@ -15,6 +15,38 @@ const view = (result: PersonalResult) =>
     completedAt: result.completedAt.toISOString(),
   });
 export const historyRouter = trpc.router({
+  stats: memberProcedure
+    .output(
+      z.object({
+        games: z.number().int(),
+        wins: z.number().int(),
+        averageSurvived: z.number(),
+        bestSurvived: z.number().int(),
+      })
+    )
+    .query(({ ctx }) =>
+      service(async () => {
+        const where = { userId: ctx.identity.userId };
+        const [all, wins] = await db.$transaction(
+          [
+            db.personalResult.aggregate({
+              where,
+              _count: true,
+              _avg: { survivedQuestions: true },
+              _max: { survivedQuestions: true },
+            }),
+            db.personalResult.count({ where: { ...where, isWinner: true } }),
+          ],
+          { isolationLevel: 'RepeatableRead' }
+        );
+        return {
+          games: all._count,
+          wins,
+          averageSurvived: all._avg.survivedQuestions ?? 0,
+          bestSurvived: all._max.survivedQuestions ?? 0,
+        };
+      })
+    ),
   list: memberProcedure
     .input(
       z
