@@ -267,6 +267,9 @@ const Home: FC = () => {
           </>
         )}
         <div className="border-t border-white/20 pt-4 text-center">
+          <Link className="block mb-3 underline text-white/80" href="/history">
+            自分の成績・履歴を見る
+          </Link>
           <Link className="underline text-white/80" href="/demo">
             1問デモを試す
           </Link>
