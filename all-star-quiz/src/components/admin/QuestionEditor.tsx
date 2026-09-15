@@ -1,7 +1,8 @@
 'use client';
 import { useState, type FC } from 'react';
-import { z } from 'zod';
-import { questionFields, questionSnapshotSchema } from '@/lib/question-schema';
+import type { z } from 'zod';
+import type { questionSnapshotSchema } from '@/lib/question-schema';
+import { questionFields } from '@/lib/question-schema';
 import { api, apiErrorStatus } from '@/lib/api-client';
 import { GAME_CONFIG } from '@/config/game';
 import { ChoiceImage } from '@/components/game/ChoiceImage';

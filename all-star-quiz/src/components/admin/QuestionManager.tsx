@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useState, type FC } from 'react';
 import { useRouter } from 'next/navigation';
-import { z } from 'zod';
-import { questionSnapshotSchema } from '@/lib/question-schema';
+import type { z } from 'zod';
+import type { questionSnapshotSchema } from '@/lib/question-schema';
 import { api, apiErrorStatus } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
 import { QuestionEditor } from './QuestionEditor';

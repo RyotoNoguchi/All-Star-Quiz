@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, type FC, type FormEvent } from 'react';
 import Link from 'next/link';
+import { HostControls } from '@/components/game/HostControls';
 import { api } from '@/lib/api-client';
 import { PlayerResult } from '@/components/game/PlayerResult';
 import { PlayerFinalResult } from '@/components/game/PlayerFinalResult';
@@ -197,16 +198,12 @@ const Home: FC = () => {
                 </p>
               </>
             )}
-            {view.hostId === view.playerId && (
-              <Link
-                href={`/monitor?room=${view.code}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block underline text-white/80"
-              >
-                大画面モニターを開く
-              </Link>
-            )}
+            <HostControls
+              key={`${view.gameId}:${view.playerId}`}
+              state={view}
+              connected={status === 'connected'}
+              onSync={retry}
+            />
             <Button
               disabled={busy}
               onClick={() => void submit('leave')}
