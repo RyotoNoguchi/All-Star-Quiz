@@ -1,4 +1,7 @@
 import { randomUUID } from 'node:crypto';
+import { NextRequest } from 'next/server';
+import { appRouter } from '../api/router';
+import { createContext } from '../api/context';
 import { db } from '../db';
 import { createGuestSession } from '../session';
 import { createRoom, joinRoom } from '../rooms';
@@ -198,6 +201,31 @@ it('ranks later elimination above earlier elimination and preserves equal ranks 
   );
   expect(result.totalQuestions).toBe(2);
   expect(result.statistics).toMatchObject({ totalPlayers: 5, totalAnswers: 8 });
+  for (const [i, user] of users.entries()) {
+    const api = appRouter.createCaller(
+      await createContext(
+        new NextRequest('http://localhost:3000/api/trpc', {
+          headers: { cookie: `quiz-participant=${user.token}` },
+        }),
+        new Headers()
+      )
+    );
+    const history = await api.history.detail({ gameId: game.id });
+    expect(history.result).toMatchObject({
+      rank: [1, 2, 3, 3, 5][i],
+      survivedQuestions: [2, 2, 1, 1, 0][i],
+      isWinner: i === 0,
+      eliminatedAtQuestion: [null, null, 2, 2, 1][i],
+      eliminationReason: [null, null, 'wrong', 'timeout', 'slowest'][i],
+    });
+    expect(history.questions).toHaveLength(i === 4 ? 1 : 2);
+    expect(history.questions[0]).toMatchObject({
+      correctAnswer: 'A',
+      ownAnswer: { choice: 'A', isCorrect: true, responseTime: (i + 1) * 100 },
+    });
+    if (i === 3) expect(history.questions[1]?.ownAnswer).toBeNull();
+    expect(JSON.stringify(history)).not.toContain('playerId');
+  }
 });
 it.each(['A', 'B'] as const)(
   'does not grant automatic victory to a sole survivor who answers %s',

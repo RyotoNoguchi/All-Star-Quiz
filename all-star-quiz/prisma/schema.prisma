@@ -34,6 +34,7 @@ model User {
   createdAt    DateTime       @default(now())
   participants Participant[]
   sessions     GuestSession[]
+  history      PersonalResult[]
 }
 
 model Game {
@@ -54,6 +55,7 @@ model Game {
   questions            GameQuestion[]
   answers              Answer[]
   result               GameResult?
+  history              PersonalResult[]
 }
 
 model Participant {
@@ -230,4 +232,24 @@ model QuestionImage {
   id String @id @default(uuid())
   data Bytes
   createdAt DateTime @default(now())
+}
+
+model PersonalResult {
+  gameId String
+  userId String
+  playerId String
+  playerName String
+  code String
+  completedAt DateTime
+  reason String
+  totalQuestions Int
+  isWinner Boolean
+  rank Int
+  survivedQuestions Int
+  eliminatedAtQuestion Int?
+  eliminationReason String?
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([gameId, userId])
+  @@index([userId, completedAt, gameId])
 }

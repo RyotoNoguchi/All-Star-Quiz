@@ -118,3 +118,5 @@ Run `docker compose up -d` for both PostgreSQL and Redis. Configure `TEST_DATABA
 [ホストの進行操作](docs/HOST_CONTROLS.md) explains preparation, start/next/cancel, connection monitoring and safe retries.
 
 [モニターの音声](docs/AUDIO.md) explains opt-in sound effects, final bell, BGM, volume and single-monitor playback coordination.
+
+個人履歴の保存・アクセス範囲・セッション期限については [個人履歴](docs/HISTORY.md) を参照してください。

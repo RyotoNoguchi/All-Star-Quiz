@@ -124,6 +124,31 @@ export const persistGameResult = async (
       completedAt,
     },
   });
+  await tx.personalResult.createMany({
+    data: players.map((player) => {
+      const ranking = finalRanking.find(
+        (entry) => entry.playerId === player.id
+      )!;
+      return {
+        gameId: game.id,
+        userId: player.userId,
+        playerId: player.id,
+        playerName: player.name,
+        code: game.code,
+        completedAt,
+        reason,
+        totalQuestions: result.totalQuestions,
+        isWinner: player.id === winnerId,
+        rank: ranking.rank,
+        survivedQuestions: ranking.survivedQuestions,
+        eliminatedAtQuestion:
+          player.eliminatedAtQuestion === null
+            ? null
+            : Math.max(0, player.eliminatedAtQuestion + 1),
+        eliminationReason: player.eliminationReason,
+      };
+    }),
+  });
   const payload = { result, ...(last ? { lastResult: last } : {}) };
   await tx.gameEventRecord.create({
     data: {
