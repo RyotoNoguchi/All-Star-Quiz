@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { closeSharedStore } from '../shared-state';
 import { db } from '../db';
 import { appRouter } from '../api/router';
 import { createContext } from '../api/context';
@@ -42,6 +43,7 @@ beforeEach(async () => {
   });
 });
 afterAll(async () => {
+  closeSharedStore();
   await db.$disconnect();
 });
 const admin = () => caller(`quiz-admin=${adminToken}`);
@@ -187,5 +189,29 @@ it('exposes prepared count and current connections only to the current host', as
   });
   await expect(
     host.host.status({ code: room.room.code })
+  ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+});
+
+it('restricts audio ownership to the current host', async () => {
+  const guest = await createGuestSession();
+  const room = await createRoom('音声ホスト', guest.userId);
+  const host = await caller(`quiz-participant=${guest.token}`);
+  const owner = crypto.randomUUID();
+  expect(await host.monitor.audio({ code: room.room.code, owner })).toEqual({
+    granted: true,
+  });
+  const other = await createGuestSession();
+  await expect(
+    (await caller(`quiz-participant=${other.token}`)).monitor.audio({
+      code: room.room.code,
+      owner: crypto.randomUUID(),
+    })
+  ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  await db.participant.update({
+    where: { id: room.playerId },
+    data: { isHost: false },
+  });
+  await expect(
+    host.monitor.audio({ code: room.room.code, owner })
   ).rejects.toMatchObject({ code: 'FORBIDDEN' });
 });

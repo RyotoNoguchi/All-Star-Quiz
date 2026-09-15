@@ -124,3 +124,19 @@ it('falls back to authoritative room data when Redis is unavailable', async () =
     process.env.REDIS_URL = url;
   }
 });
+it('allows only one audio owner across clients, renews it, and ignores another owner release', async () => {
+  const other = createSharedStore(url, prefix);
+  try {
+    expect(await store.claimAudio('audio-test', 'first')).toBe(true);
+    expect(await other.claimAudio('audio-test', 'second')).toBe(false);
+    expect(await store.claimAudio('audio-test', 'first')).toBe(true);
+    expect(await other.releaseAudio('audio-test', 'second')).toBe(false);
+    expect(await store.releaseAudio('audio-test', 'first')).toBe(true);
+    expect(await other.claimAudio('audio-test', 'second')).toBe(true);
+    await client.pExpire(`${prefix}:{audio-test}:audio`, 1);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(await store.claimAudio('audio-test', 'first')).toBe(true);
+  } finally {
+    other.close();
+  }
+});
