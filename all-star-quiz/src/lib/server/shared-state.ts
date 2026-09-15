@@ -93,6 +93,20 @@ export const createSharedStore = (url: string, prefix = 'quiz:v1') => {
         await ready()
       ).eval(RELEASE, { keys: [key(gameId, 'lease')], arguments: [token] })) ===
       1,
+    claimAudio: async (gameId: string, owner: string) =>
+      (await (
+        await ready()
+      ).eval(
+        `local current = redis.call('GET', KEYS[1])
+if not current or current == ARGV[1] then redis.call('SET', KEYS[1], ARGV[1], 'PX', 10000); return 1 end
+return 0`,
+        { keys: [key(gameId, 'audio')], arguments: [owner] }
+      )) === 1,
+    releaseAudio: async (gameId: string, owner: string) =>
+      (await (
+        await ready()
+      ).eval(RELEASE, { keys: [key(gameId, 'audio')], arguments: [owner] })) ===
+      1,
     close: () => {
       if (client.isOpen) client.destroy();
     },
@@ -123,4 +137,21 @@ export const sharedRoom = async (
 export const closeSharedStore = () => {
   store?.close();
   store = undefined;
+};
+
+export const audioLease = async (
+  gameId: string,
+  owner: string,
+  release: boolean
+) => {
+  if (!process.env.REDIS_URL) throw new Error('Audio coordination unavailable');
+  store ??= createSharedStore(
+    process.env.REDIS_URL,
+    process.env.QUIZ_REDIS_PREFIX || 'quiz:v1'
+  );
+  if (release) {
+    await store.releaseAudio(gameId, owner);
+    return false;
+  }
+  return store.claimAudio(gameId, owner);
 };

@@ -116,3 +116,5 @@ Run `docker compose up -d` for both PostgreSQL and Redis. Configure `TEST_DATABA
 ホストは参加者画面から[大画面モニター](docs/MONITOR.md)を開けます。閲覧専用の接続で、問題・選択肢・残り時間・回答数・生存者数を表示します。
 
 [ホストの進行操作](docs/HOST_CONTROLS.md) explains preparation, start/next/cancel, connection monitoring and safe retries.
+
+[モニターの音声](docs/AUDIO.md) explains opt-in sound effects, final bell, BGM, volume and single-monitor playback coordination.

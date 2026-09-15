@@ -3,6 +3,7 @@ import { useEffect, useState, type FC } from 'react';
 import Link from 'next/link';
 import { useReducedMotion } from '@/hooks/use-reduced-motion';
 import { useMonitorConnection } from '@/hooks/use-game-connection';
+import { AudioControls } from '@/components/game/AudioControls';
 import { MonitorView } from '@/components/game/MonitorView';
 import { Button } from '@/components/ui/button';
 const MonitorPage: FC = () => {
@@ -39,6 +40,14 @@ const MonitorPage: FC = () => {
             reducedMotion={reducedMotion}
           />
         )}
+        <AudioControls
+          key={code}
+          code={code}
+          state={state}
+          presentation={presentation}
+          clock={clock}
+          connected={status === 'connected'}
+        />
         <label className="flex items-center gap-3 text-lg">
           <input
             type="checkbox"
