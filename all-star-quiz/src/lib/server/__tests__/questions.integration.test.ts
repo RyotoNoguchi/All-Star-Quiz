@@ -158,3 +158,34 @@ it('requires a final question and supports a final-only game', async () => {
   await api.questions.create({ ...fields, type: 'final' });
   expect(await host.questions.prepareGame(input)).toMatchObject({ count: 1 });
 });
+it('exposes prepared count and current connections only to the current host', async () => {
+  const guest = await createGuestSession();
+  const room = await createRoom('ホスト', guest.userId);
+  const host = await caller(`quiz-participant=${guest.token}`);
+  const status = await host.host.status({ code: room.room.code });
+  expect(status.preparedCount).toBe(0);
+  expect(status.players).toEqual([{ id: room.playerId, connected: false }]);
+  await db.realtimeConnection.create({
+    data: {
+      id: 'host-connection',
+      participantId: room.playerId,
+      expiresAt: new Date(Date.now() + 60000),
+    },
+  });
+  expect(
+    (await host.host.status({ code: room.room.code })).players[0]?.connected
+  ).toBe(true);
+  const other = await createGuestSession();
+  await expect(
+    (await caller(`quiz-participant=${other.token}`)).host.status({
+      code: room.room.code,
+    })
+  ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  await db.participant.update({
+    where: { id: room.playerId },
+    data: { isHost: false },
+  });
+  await expect(
+    host.host.status({ code: room.room.code })
+  ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+});

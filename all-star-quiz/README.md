@@ -114,3 +114,5 @@ Run `docker compose up -d` for both PostgreSQL and Redis. Configure `TEST_DATABA
 ゲームイベント配信・全フェーズの状態同期は実装済みです。公開情報と本人の回答を分離し、イベント欠落時は最新状態から復元します。通信仕様は[REALTIME.md](docs/REALTIME.md)を参照してください。ホーム画面の待合室はイベント同期に接続済みです。通信断の再接続、最新状態の復元、複数タブの退出通知に対応しています。スマホの出題・回答画面は実データに接続済みで、残り時間・送信状態・安全な再送に対応しています。[回答画面の仕様](docs/PLAYER_ANSWERS.md)を参照してください。問題ごとの正誤・脱落理由と最終順位も表示します。[結果画面の仕様](docs/PLAYER_RESULTS.md)を参照してください。
 
 ホストは参加者画面から[大画面モニター](docs/MONITOR.md)を開けます。閲覧専用の接続で、問題・選択肢・残り時間・回答数・生存者数を表示します。
+
+[ホストの進行操作](docs/HOST_CONTROLS.md) explains preparation, start/next/cancel, connection monitoring and safe retries.
