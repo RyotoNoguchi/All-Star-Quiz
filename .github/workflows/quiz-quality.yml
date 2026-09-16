@@ -13,7 +13,7 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     services:
       redis:
         image: redis:7.4-alpine
@@ -48,3 +48,13 @@ jobs:
           cache-dependency-path: all-star-quiz/package-lock.json
       - run: npm ci
       - run: npm run check
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: quiz-browser-test-results
+          path: |
+            all-star-quiz/playwright-report/
+            all-star-quiz/test-results/
+          retention-days: 7

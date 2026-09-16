@@ -10,3 +10,5 @@ package-lock.json
 *.tsbuildinfo
 
 .realtime/
+playwright-report/
+test-results/
