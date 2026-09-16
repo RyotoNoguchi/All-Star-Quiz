@@ -11,6 +11,9 @@ const main = async () => {
   const server = await startRealtimeServer({
     port,
     redisUrl: process.env.REDIS_URL,
+    ...(process.env.QUIZ_REALTIME_PREFIX
+      ? { prefix: process.env.QUIZ_REALTIME_PREFIX }
+      : {}),
     origins: (process.env.ALLOWED_ORIGINS || '')
       .split(',')
       .map((value) => value.trim())

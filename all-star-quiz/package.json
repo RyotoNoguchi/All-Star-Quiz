@@ -24,7 +24,8 @@
     "admin:create": "tsx scripts/create-admin.ts",
     "realtime:build": "esbuild src/server/realtime-entry.ts --bundle --platform=node --packages=external --outfile=.realtime/server.cjs",
     "realtime:start": "node .realtime/server.cjs",
-    "realtime:dev": "tsx src/server/realtime-entry.ts"
+    "realtime:dev": "tsx src/server/realtime-entry.ts",
+    "test:e2e": "node scripts/test-e2e.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.2",
@@ -51,6 +52,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",

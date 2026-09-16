@@ -120,3 +120,5 @@ Run `docker compose up -d` for both PostgreSQL and Redis. Configure `TEST_DATABA
 [モニターの音声](docs/AUDIO.md) explains opt-in sound effects, final bell, BGM, volume and single-monitor playback coordination.
 
 個人履歴の保存・アクセス範囲・セッション期限については [個人履歴](docs/HISTORY.md) を参照してください。
+
+複数端末・同時回答の自動検証は [E2Eの実行手順](docs/E2E.md) を参照してください。
