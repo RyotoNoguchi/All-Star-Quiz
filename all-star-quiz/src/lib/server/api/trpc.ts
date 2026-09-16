@@ -1,3 +1,6 @@
+import { getHTTPStatusCodeFromError } from '@trpc/server/http';
+import { limitRequest, logRequest } from '../request-policy';
+import { isProductionDeployment } from '../deployment-config';
 import { GameFlowError } from '../game-error';
 import { initTRPC, TRPCError } from '@trpc/server';
 import { ZodError } from 'zod';
@@ -68,16 +71,39 @@ export const trpc = initTRPC.context<Context>().create({
   }),
 });
 export const publicProcedure = trpc.procedure.use(
-  async ({ ctx, type, next }) => {
+  async ({ ctx, type, path, next }) => {
+    const started = performance.now();
     if (
       type === 'mutation' &&
-      ctx.request.headers.get('origin') !== ctx.request.nextUrl.origin
+      ctx.request.headers.get('origin') !==
+        (isProductionDeployment()
+          ? process.env.APP_ORIGIN
+          : ctx.request.nextUrl.origin)
     )
       throw new TRPCError({
         code: 'FORBIDDEN',
         message: 'ページを再読み込みしてください。',
       });
-    return next();
+    try {
+      if (type === 'mutation')
+        await limitRequest(ctx.request, path, ctx.identity?.userId);
+      const result = await next();
+      logRequest(
+        path,
+        result.ok ? 200 : getHTTPStatusCodeFromError(result.error),
+        performance.now() - started
+      );
+      return result;
+    } catch (error) {
+      if (error instanceof TRPCError && error.code === 'TOO_MANY_REQUESTS')
+        ctx.resHeaders.set('Retry-After', '60');
+      logRequest(
+        path,
+        getHTTPStatusCodeFromError(apiError(error)),
+        performance.now() - started
+      );
+      throw error;
+    }
   }
 );
 export const memberProcedure = publicProcedure.use(async ({ ctx, next }) => {

@@ -1,0 +1,42 @@
+# Blueprint path: all-star-quiz/render.yaml. Creates paid resources only after operator approval.
+services:
+  - type: web
+    name: all-star-quiz-realtime
+    runtime: docker
+    rootDir: all-star-quiz
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    region: singapore
+    plan: 0.5c-512mb
+    numInstances: 1
+    autoDeployTrigger: off
+    healthCheckPath: /health
+    preDeployCommand: ./node_modules/.bin/prisma migrate deploy
+    envVars:
+      - key: DEPLOYMENT_ENV
+        value: production
+      - key: RATE_LIMIT_ENABLED
+        value: 'true'
+      - key: APP_ORIGIN
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: NEXT_PUBLIC_REALTIME_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: REALTIME_TICKET_SECRET
+        sync: false
+  - type: keyvalue
+    name: all-star-quiz-redis
+    region: singapore
+    plan: 256mb
+    maxmemoryPolicy: noeviction
+    # Vercel uses dynamic egress IPs. External Redis connections require password + TLS.
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: Authenticated TLS access from Vercel and Render

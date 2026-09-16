@@ -47,9 +47,16 @@ jobs:
           cache: npm
           cache-dependency-path: all-star-quiz/package-lock.json
       - run: npm ci
+      - run: npm run security:check
       - run: npm run check
+      - run: docker build -t all-star-quiz-realtime:test .
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+        env:
+          QUIZ_E2E_IMAGE: all-star-quiz-realtime:test
+      - run: npm run test:backup
+        env:
+          QUIZ_POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

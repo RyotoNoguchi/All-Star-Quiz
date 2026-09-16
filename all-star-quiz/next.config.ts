@@ -1,10 +1,17 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Browser connections are restricted to this build's realtime origin.
 
   // Security headers including CSP
   async headers() {
+    const realtime = process.env.NEXT_PUBLIC_REALTIME_URL;
+    const realtimeOrigins = realtime
+      ? (() => {
+          const url = new URL(realtime);
+          return `${url.origin} ${url.origin.replace(/^http/, 'ws')}`;
+        })()
+      : '';
     return [
       {
         source: '/(.*)',
@@ -13,11 +20,11 @@ const nextConfig: NextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // Next.js requires unsafe-eval for dev
+              `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''}`,
               "style-src 'self' 'unsafe-inline'", // Tailwind requires unsafe-inline
               "img-src 'self' https: data: blob:",
               "font-src 'self' data:",
-              "connect-src 'self' ws: wss:", // WebSocket support for future Socket.io
+              `connect-src 'self' ${realtimeOrigins}`,
               "media-src 'self'",
               "object-src 'none'",
               "base-uri 'self'",
