@@ -1,6 +1,6 @@
 # 配備構成（ADR-002）
 
-2026-09-11 / Issue #2。実際のクラウド配備は #27、認証付き通信は #10。
+2026-09-11 / Issue #2。#27の配備設定・検証・公開前の残作業は [運用手順](OPERATIONS.md) を参照。
 
 ## 決定
 
@@ -35,17 +35,17 @@ Socket.IOはWebSocketのみを使うためHTTP polling用のsticky sessionは不
 
 `.env.example` は値の形式のみ。実値は開発環境かホスティングのシークレット管理に保存する。
 
-| 名前                     | 使用先           | 意味                                         |
-| ------------------------ | ---------------- | -------------------------------------------- |
-| DATABASE_URL             | 両サーバー       | PostgreSQL接続（Next.jsはプーリング接続）    |
-| DIRECT_URL               | マイグレーション | PostgreSQL直接接続                           |
-| REDIS_URL                | 両サーバー       | Pub/Sub対応のredis(s) URL。REST専用URLは不可 |
-| AUTH_SECRET              | Next.js          | 認証鍵（#5）                                 |
-| REALTIME_TICKET_SECRET   | 両サーバー       | 短命接続チケット署名鍵（#10）                |
-| APP_ORIGIN               | 両サーバー       | 利用者向けの単一Origin                       |
-| ALLOWED_ORIGINS          | 常駐サーバー     | 許可Originのカンマ区切り                     |
-| NEXT_PUBLIC_REALTIME_URL | ブラウザー       | 常駐サーバーの公開HTTPS URL                  |
-| PORT                     | 常駐サーバー     | コンテナのHTTP待受ポート                     |
+| 名前         | 使用先           | 意味                                         |
+| ------------ | ---------------- | -------------------------------------------- |
+| DATABASE_URL | 両サーバー       | PostgreSQL接続（Next.jsはプーリング接続）    |
+| DIRECT_URL   | マイグレーション | PostgreSQL直接接続                           |
+| REDIS_URL    | 両サーバー       | Pub/Sub対応のredis(s) URL。REST専用URLは不可 |
+
+| REALTIME_TICKET_SECRET | 両サーバー | 短命接続チケット署名鍵（#10） |
+| APP_ORIGIN | 両サーバー | 利用者向けの単一Origin |
+| ALLOWED_ORIGINS | 常駐サーバー | 許可Originのカンマ区切り |
+| NEXT_PUBLIC_REALTIME_URL | ブラウザー | 常駐サーバーの公開HTTPS URL |
+| PORT | 常駐サーバー | コンテナのHTTP待受ポート |
 
 ## 起動と検証
 
@@ -55,7 +55,7 @@ Socket.IOはWebSocketのみを使うためHTTP polling用のsticky sessionは不
 
 #4・#9ではローカルPostgreSQL／Redisの起動設定を追加する。#10では常駐サーバーの `npm run realtime` とコンテナ設定を追加する。#27ではVercelのRoot Directoryを `all-star-quiz` に設定し、コンテナは同ディレクトリでビルド・起動、健康確認・DB migrationの実行手順を整備する。
 
-今回確認済みなのはローカルでの独立プロセス配置が可能なtransportと既存Next.jsの本番ビルド。クラウド配備、認証、共有Redis配信、耐障害性の実証はそれぞれ #10・#9・#26・#27の完了条件であり、未実装。
+認証、Redis共有配信、複数端末と同時回答は実装・検証済み。#27で配備用コンテナと環境検証・運用手順を追加。クラウドへの実際の配備と公開確認は未実施。
 
 ## 費用が発生する操作
 

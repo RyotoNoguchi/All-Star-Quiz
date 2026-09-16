@@ -1,3 +1,4 @@
+import { dependenciesHealthy } from '../lib/server/health';
 import { answerInputSchema } from '../lib/server/answer-queue';
 import { submitAnswer } from '../lib/server/answers';
 import { GameFlowError } from '../lib/server/game-error';
@@ -50,8 +51,11 @@ export const startRealtimeServer = async (options: {
     },
   });
   const sub = pub.duplicate();
-  const http = createServer((req, res) => {
-    const healthy = pub.isReady && sub.isReady;
+  const http = createServer(async (req, res) => {
+    const healthy =
+      pub.isReady &&
+      sub.isReady &&
+      (req.url !== '/health' || (await dependenciesHealthy()));
     res.writeHead(req.url === '/health' ? (healthy ? 200 : 503) : 404, {
       'content-type': 'application/json',
     });

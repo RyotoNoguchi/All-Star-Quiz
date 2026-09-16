@@ -25,10 +25,14 @@
     "realtime:build": "esbuild src/server/realtime-entry.ts --bundle --platform=node --packages=external --outfile=.realtime/server.cjs",
     "realtime:start": "node .realtime/server.cjs",
     "realtime:dev": "tsx src/server/realtime-entry.ts",
-    "test:e2e": "node scripts/test-e2e.mjs"
+    "test:e2e": "node scripts/test-e2e.mjs",
+    "deployment:check": "tsx scripts/validate-deployment.ts",
+    "security:check": "npm audit --audit-level=moderate",
+    "db:backup": "node scripts/backup-database.mjs",
+    "test:backup": "node scripts/test-backup.mjs"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.2",
+    "@prisma/client": "6.19.3",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-progress": "^1.1.7",
@@ -40,15 +44,16 @@
     "clsx": "^2.1.1",
     "dotenv": "^17.4.2",
     "lucide-react": "^0.525.0",
-    "next": "15.4.1",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
+    "next": "15.5.25",
+    "react": "19.1.9",
+    "react-dom": "19.1.9",
     "redis": "^5.12.1",
-    "sharp": "0.34.3",
+    "sharp": "0.35.4",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
     "tailwind-merge": "^3.3.1",
-    "zod": "^4.6.2"
+    "zod": "^4.6.2",
+    "prisma": "6.19.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -62,21 +67,25 @@
     "@types/react-dom": "^19",
     "@typescript-eslint/eslint-plugin": "^8.37.0",
     "@typescript-eslint/parser": "^8.37.0",
-    "@vitejs/plugin-react": "^4.7.0",
+    "@vitejs/plugin-react": "5.2.0",
     "esbuild": "^0.28.2",
     "eslint": "^9",
-    "eslint-config-next": "15.4.1",
+    "eslint-config-next": "15.5.25",
     "eslint-config-prettier": "^10.1.5",
     "jsdom": "^26.1.0",
     "prettier": "^3.6.2",
-    "prisma": "^6.19.2",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
     "tw-animate-css": "^1.3.5",
     "typescript": "^5",
-    "vitest": "^3.2.4"
+    "vitest": "4.1.11"
   },
   "engines": {
     "node": ">=22.22.0 <23"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.2",
+    "postcss": "8.5.28",
+    "picomatch@^2.3.1": "2.3.2"
   }
 }

@@ -50,6 +50,16 @@ export const createSharedStore = (url: string, prefix = 'quiz:v1') => {
   };
   const key = (gameId: string, kind: string) => `${prefix}:{${gameId}}:${kind}`;
   return {
+    ping: async () => (await ready()).ping(),
+    quota: async (bucket: string, limit: number, windowMs: number) => {
+      const used = await (
+        await ready()
+      ).eval(
+        `local count = redis.call('INCR', KEYS[1]); if count == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[1]) end; return count`,
+        { keys: [`${prefix}:rate:${bucket}`], arguments: [String(windowMs)] }
+      );
+      return Number(used) <= limit;
+    },
     read: async (gameId: string, version: number) => {
       const raw = await (await ready()).get(key(gameId, 'state'));
       if (!raw) return null;
@@ -154,4 +164,13 @@ export const audioLease = async (
     return false;
   }
   return store.claimAudio(gameId, owner);
+};
+
+export const infrastructureStore = () => {
+  if (!process.env.REDIS_URL) throw new Error('Configure REDIS_URL');
+  store ??= createSharedStore(
+    process.env.REDIS_URL,
+    process.env.QUIZ_REDIS_PREFIX || 'quiz:v1'
+  );
+  return store;
 };

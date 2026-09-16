@@ -1,9 +1,11 @@
 import 'dotenv/config';
+import { assertProductionConfiguration } from '../lib/server/deployment-config';
 import { sweepGames } from '../lib/server/presence';
 import { startRealtimeServer } from './realtime';
 import { db } from '../lib/server/db';
 import { closeSharedStore } from '../lib/server/shared-state';
 const main = async () => {
+  assertProductionConfiguration();
   if (!process.env.REDIS_URL) throw new Error('Configure REDIS_URL');
   const port = Number(process.env.PORT || 3001);
   if (!Number.isInteger(port) || port < 0 || port > 65535)

@@ -1,7 +1,11 @@
 import 'dotenv/config';
 import { randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { open, unlink } from 'node:fs/promises';
+import { open, unlink, mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { createServer } from 'node:net';
 import { setTimeout as delay } from 'node:timers/promises';
 import { PrismaClient } from '@prisma/client';
@@ -22,6 +26,7 @@ const env = {
   DATABASE_URL: url.href,
   DIRECT_URL: url.href,
   QUIZ_TEST_SCHEMA: schema,
+  RATE_LIMIT_ENABLED: 'true',
   REDIS_URL: process.env.TEST_REDIS_URL,
   QUIZ_REDIS_PREFIX: schema,
   QUIZ_REALTIME_PREFIX: `${schema}:realtime`,
@@ -35,10 +40,13 @@ const admin = new PrismaClient({
 });
 const fixture = new PrismaClient({ datasources: { db: { url: url.href } } });
 const children = new Set();
+let containerDirectory;
+const containerName = `${schema}-realtime`;
+const execFileAsync = promisify(execFile);
 let interrupted = false;
-const start = (args, overrides = {}) => {
+const start = (args, overrides = {}, executable = process.execPath) => {
   if (interrupted) throw new Error('E2E interrupted.');
-  const child = spawn(process.execPath, args, {
+  const child = spawn(executable, args, {
     env: { ...env, ...overrides },
     stdio: 'inherit',
   });
@@ -121,7 +129,53 @@ try {
     packages: 'external',
     outfile: '.realtime/server.cjs',
   });
-  const realtime = start(['.realtime/server.cjs'], { PORT: '3201' });
+  let realtime;
+  if (process.env.QUIZ_E2E_IMAGE) {
+    containerDirectory = await mkdtemp(join(tmpdir(), 'quiz-e2e-container-'));
+    const containerURL = (value) => {
+      const parsed = new URL(value);
+      parsed.hostname = 'host.docker.internal';
+      return parsed.href;
+    };
+    const settings = {
+      NODE_ENV: 'production',
+      PORT: '10000',
+      DATABASE_URL: containerURL(env.DATABASE_URL),
+      DIRECT_URL: containerURL(env.DIRECT_URL),
+      REDIS_URL: containerURL(env.REDIS_URL),
+      QUIZ_REDIS_PREFIX: env.QUIZ_REDIS_PREFIX,
+      QUIZ_REALTIME_PREFIX: env.QUIZ_REALTIME_PREFIX,
+      REALTIME_TICKET_SECRET: env.REALTIME_TICKET_SECRET,
+      ALLOWED_ORIGINS: env.ALLOWED_ORIGINS,
+      RATE_LIMIT_ENABLED: 'true',
+    };
+    const envFile = join(containerDirectory, 'runtime.env');
+    await writeFile(
+      envFile,
+      Object.entries(settings)
+        .map(([key, value]) => `${key}=${value}`)
+        .join('\n'),
+      { mode: 0o600 }
+    );
+    realtime = start(
+      [
+        'run',
+        '--rm',
+        '--name',
+        containerName,
+        ...(process.platform === 'linux'
+          ? ['--add-host', 'host.docker.internal:host-gateway']
+          : []),
+        '--env-file',
+        envFile,
+        '-p',
+        '127.0.0.1:3201:10000',
+        process.env.QUIZ_E2E_IMAGE,
+      ],
+      {},
+      'docker'
+    );
+  } else realtime = start(['.realtime/server.cjs'], { PORT: '3201' });
   const web = start([
     'node_modules/next/dist/bin/next',
     'start',
@@ -161,6 +215,12 @@ try {
       if (redis.isOpen) redis.destroy();
     }
   } finally {
+    if (containerDirectory) {
+      await execFileAsync('docker', ['rm', '-f', containerName]).catch(
+        () => {}
+      );
+      await rm(containerDirectory, { recursive: true, force: true });
+    }
     process.removeListener('SIGINT', interrupt);
     process.removeListener('SIGTERM', interrupt);
     await lock.close();
