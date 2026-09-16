@@ -10,7 +10,7 @@
 
 ## 契約前に確認する内容
 
-2026-09-16確認時点の想定は、Vercel Pro 1席・Supabase Pro 1プロジェクト・Renderの通信1台とKey Value1台。Vercelは月$20、Supabaseは月$25から。Renderは通信0.5 CPU/512 MBが月$7で、Key Value料金は契約画面で最終確認する。税・転送量・超過使用料は別途発生しうる。無料サービスへの自動変更や有料アップグレードは行わない。使用するアカウント、月額予算、従量課金の扱いを確定してから作成する。
+2026-09-16確認時点の想定は、Vercel Pro 1席・Supabase Pro 1プロジェクト・Renderの通信1台とKey Value1台。Vercelは月$20、Supabaseは月$25から。Renderは通信0.5 CPU/512 MBが月$7、Key Value 256 MBが月$10。基本料金の合計目安は月$62で、契約画面で最終確認する。税・転送量・超過使用料は別途発生しうる。無料サービスへの自動変更や有料アップグレードは行わない。使用するアカウント、月額予算、従量課金の扱いを確定してから作成する。
 
 参照：[Vercel料金](https://vercel.com/pricing)、[Supabase料金](https://supabase.com/pricing)、[Render料金](https://render.com/pricing)、[RenderプランID](https://render.com/docs/compute-plans)。
 
